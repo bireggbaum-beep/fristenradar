@@ -20,7 +20,7 @@ export function App() {
 
   const [selectedItem, setSelectedItem] = useState<FristItem | null>(null);
 
-  const { items: rawItems, loading, loadMock } = useCalendar();
+  const { items: rawItems, loading, loadFromBackend } = useCalendar();
   const { saveStatus, getStatus } = useStatusStore();
 
   const items: FristItem[] = useMemo(
@@ -53,12 +53,12 @@ export function App() {
   );
 
   useEffect(() => {
-    loadMock();
-  }, [loadMock]);
+    loadFromBackend();
+  }, [loadFromBackend]);
 
   const handleRefresh = useCallback(() => {
-    loadMock();
-  }, [loadMock]);
+    loadFromBackend();
+  }, [loadFromBackend]);
 
   const handleStatusChange = useCallback(
     (id: string, status: FristStatus) => {

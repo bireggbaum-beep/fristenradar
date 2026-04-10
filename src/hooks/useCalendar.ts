@@ -4,6 +4,7 @@ import {
   fetchEvents,
   fetchCalendarIdByName,
   fetchEventsFromCalendar,
+  fetchEventsFromBackend,
   getMockEvents,
 } from '../lib/calendarApi';
 import { mapEventsToFristItems } from '../lib/fristMapper';
@@ -64,5 +65,21 @@ export function useCalendar() {
     }
   }, []);
 
-  return { ...state, loadMock, loadFromGoogle };
+  const loadFromBackend = useCallback(async () => {
+    setState(prev => ({ ...prev, loading: true, error: null }));
+    try {
+      const events = await fetchEventsFromBackend();
+      const items = mapEventsToFristItems(events);
+      items.sort((a, b) => urgencyScore(b) - urgencyScore(a));
+      setState({ items, loading: false, error: null, lastSync: new Date() });
+    } catch (err) {
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        error: err instanceof Error ? err.message : 'Unbekannter Fehler',
+      }));
+    }
+  }, []);
+
+  return { ...state, loadMock, loadFromGoogle, loadFromBackend };
 }
