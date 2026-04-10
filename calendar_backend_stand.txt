@@ -1,0 +1,366 @@
+STAND / HANDOFF FÜR NEUE SESSION
+Zeitkontext: Friday, April 10, 2026 02:14 UTC
+
+ZIEL
+- Auf dem Server läuft ein kleines FastAPI-Backend, das Google-Kalendertermine per OAuth ausliest.
+- Der Endpoint liefert bereits korrekt JSON zurück.
+- OAuth ist erfolgreich eingerichtet, token.json existiert.
+- Der Kalender war zuerst leer; nach Anlegen von Testterminen kamen die Termine korrekt zurück.
+
+INFRA / SERVER
+- Server/Host: eliteVault
+- User: root
+- Projektpfad: /opt/fristenradar
+- Python: 3.13.5
+- WICHTIG: Die tatsächlich verwendete virtuelle Umgebung ist aktuell NICHT /opt/fristenradar/.venv, sondern /root/.venv
+  Erkennbar an den Tracebacks mit:
+  /root/.venv/lib/python3.13/site-packages/...
+- Aktivierung bisher:
+  source ~/.venv/bin/activate
+
+PAKETE IN DER VENV
+- fastapi
+- uvicorn
+- google-api-python-client
+- google-auth
+- google-auth-oauthlib
+- python-dotenv
+- plus deren Abhängigkeiten
+
+WICHTIGE INSTALL-/SYSTEM-HISTORIE
+- pip war anfangs nicht installiert: /usr/bin/python3: No module named pip
+- Gelöst über apt:
+  apt update
+  apt install -y python3-pip python3-venv
+- Danach fehlte ensurepip für venv
+- Gelöst über:
+  apt install python3.13-venv
+- Danach lief die venv
+- SSH Port Forwarding war deaktiviert:
+  AllowTcpForwarding no
+- Das wurde auf yes geändert in /etc/ssh/sshd_config
+- Danach ssh neu gestartet
+
+PROJEKTSTRUKTUR
+/opt/fristenradar/
+  app/
+    main.py
+    google_calendar.py
+  scripts/
+    google_auth.py
+  .env
+  credentials.json
+  token.json
+
+AKTUELLER DATEI-INHALT BZW. LOGIK
+
+1) /opt/fristenradar/app/google_calendar.py
+
+Inhalt/Logik:
+- liest OAuth-Credentials aus /opt/fristenradar/token.json
+- refresht Token bei Bedarf
+- baut Google Calendar API Service
+- holt Events aus Kalender-ID aus .env, default "primary"
+- normalisiert Events auf:
+  {
+    "id": ...,
+    "title": ...,
+    "note": ...,
+    "start": ...,
+    "end": ...,
+    "allDay": ...,
+    "status": ...
+  }
+
+Sinngemäßer Inhalt:
+
+import os
+from datetime import datetime, timedelta, timezone
+
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+
+SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
+
+
+def get_google_service():
+    creds = Credentials.from_authorized_user_file("/opt/fristenradar/token.json", SCOPES)
+
+    if creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+        with open("/opt/fristenradar/token.json", "w", encoding="utf-8") as f:
+            f.write(creds.to_json())
+
+    return build("calendar", "v3", credentials=creds)
+
+
+def normalize_event(event: dict):
+    start = event.get("start", {})
+    end = event.get("end", {})
+    all_day = "date" in start
+
+    return {
+        "id": event.get("id"),
+        "title": event.get("summary") or "(ohne Titel)",
+        "note": event.get("description") or "",
+        "start": start.get("date") if all_day else start.get("dateTime"),
+        "end": end.get("date") if all_day else end.get("dateTime"),
+        "allDay": all_day,
+        "status": event.get("status"),
+    }
+
+
+def get_upcoming_events(days: int = 30):
+    service = get_google_service()
+    calendar_id = os.getenv("GOOGLE_CALENDAR_ID", "primary")
+
+    now = datetime.now(timezone.utc)
+    time_max = now + timedelta(days=days)
+
+    result = (
+        service.events()
+        .list(
+            calendarId=calendar_id,
+            timeMin=now.isoformat(),
+            timeMax=time_max.isoformat(),
+            singleEvents=True,
+            orderBy="startTime",
+        )
+        .execute()
+    )
+
+    events = result.get("items", [])
+    return [normalize_event(event) for event in events if event.get("status") != "cancelled"]
+
+2) /opt/fristenradar/app/main.py
+
+Inhalt/Logik:
+- lädt .env aus /opt/fristenradar/.env
+- startet FastAPI
+- Endpoint:
+  GET /api/calendar/upcoming?days=30
+
+Sinngemäßer Inhalt:
+
+from fastapi import FastAPI
+from dotenv import load_dotenv
+
+from app.google_calendar import get_upcoming_events
+
+load_dotenv("/opt/fristenradar/.env")
+
+app = FastAPI()
+
+
+@app.get("/api/calendar/upcoming")
+def calendar_upcoming(days: int = 30):
+    return {"items": get_upcoming_events(days=days)}
+
+3) /opt/fristenradar/.env
+
+Aktuell:
+GOOGLE_CALENDAR_ID=primary
+
+WICHTIG:
+- Aktuell wird also der primäre Kalender des autorisierten Google-Kontos gelesen.
+- Es wurde geprüft, dass der Kalender anfangs leer war.
+- Nach Anlegen von Testterminen im richtigen Kalender kamen die Daten zurück.
+
+4) /opt/fristenradar/scripts/google_auth.py
+
+WICHTIG:
+- Der ursprüngliche Browser-/Tunnel-Weg war problematisch.
+- Die funktionierende Lösung war ein manuelles OAuth-Skript:
+  - Script gibt Auth-URL aus
+  - URL im Browser am PC öffnen
+  - nach Zustimmung Redirect-URL aus Browser kopieren
+  - komplette Redirect-URL im Server-Terminal einfügen
+  - token.json wird geschrieben
+- Zusätzlich musste gesetzt werden:
+  OAUTHLIB_INSECURE_TRANSPORT=1
+  weil localhost/127.0.0.1 Redirect via HTTP genutzt wurde
+
+Sinngemäßer finaler Inhalt:
+
+import os
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
+from google_auth_oauthlib.flow import Flow
+
+SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
+REDIRECT_URI = "http://127.0.0.1:8765/"
+
+flow = Flow.from_client_secrets_file(
+    "/opt/fristenradar/credentials.json",
+    scopes=SCOPES,
+    redirect_uri=REDIRECT_URI,
+)
+
+auth_url, _ = flow.authorization_url(
+    access_type="offline",
+    prompt="consent",
+)
+
+print(auth_url)
+redirect_response = input("Komplette Redirect-URL hier einfügen: ").strip()
+
+flow.fetch_token(authorization_response=redirect_response)
+
+with open("/opt/fristenradar/token.json", "w", encoding="utf-8") as f:
+    f.write(flow.credentials.to_json())
+
+print("token.json geschrieben")
+
+GOOGLE CLOUD / OAUTH STATUS
+- Google Calendar API ist im Google Cloud Projekt aktiviert
+- OAuth Client wurde als Desktop App erstellt
+- credentials.json wurde heruntergeladen und auf den Server kopiert nach:
+  /opt/fristenradar/credentials.json
+- Das OAuth Consent Screen Problem mit Fehler 403 wurde gelöst, indem das verwendete Google-Konto als Testnutzer eingetragen wurde
+- token.json wurde erfolgreich erstellt und liegt vor:
+  /opt/fristenradar/token.json
+
+SSH / TUNNELING STATUS
+- Zwischendurch gab es:
+  channel 3: open failed: administratively prohibited: open failed
+- Ursache war:
+  AllowTcpForwarding no
+- Wurde geändert auf:
+  AllowTcpForwarding yes
+- Für den finalen funktionierenden OAuth-Weg war der Tunnel dann aber letztlich nicht mehr nötig, weil die Redirect-URL manuell zurückkopiert wurde
+
+WICHTIGE BEFEHLE, DIE JETZT FUNKTIONIEREN
+
+VENV AKTIVIEREN
+(auf dem Server)
+cd /opt/fristenradar
+source ~/.venv/bin/activate
+
+API STARTEN
+(auf dem Server)
+cd /opt/fristenradar
+source ~/.venv/bin/activate
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+LOKAL AUF DEM SERVER TESTEN
+(auf dem Server)
+curl http://127.0.0.1:8000/api/calendar/upcoming
+
+IM BROWSER TESTEN
+(auf dem PC)
+http://DEIN-SERVER:8000/api/calendar/upcoming
+
+LETZTER ERFOLGREICHER API-OUTPUT
+Die API lieferte zuletzt erfolgreich:
+
+{
+  "items": [
+    {
+      "id": "25s0o39vr2h3i3ihvubnln00u3",
+      "title": "Abgabe Steuererklärung",
+      "note": "",
+      "start": "2026-04-12",
+      "end": "2026-04-13",
+      "allDay": true,
+      "status": "confirmed"
+    },
+    {
+      "id": "2mv7dus7s7fkmgc2iedhmk4ef2",
+      "title": "Kieferorthopädie",
+      "note": "",
+      "start": "2026-04-12T04:00:00+02:00",
+      "end": "2026-04-12T05:00:00+02:00",
+      "allDay": false,
+      "status": "confirmed"
+    }
+  ]
+}
+
+WAS BEREITS KLAR IST
+- Backend läuft grundsätzlich
+- Auth funktioniert
+- Token funktioniert
+- Google API Zugriff funktioniert
+- Normalisierung von ganztägigen und normalen Events funktioniert
+- Endpoint /api/calendar/upcoming funktioniert
+- Leere Ausgabe war anfangs korrekt, weil Kalender leer war
+- Nach Testterminen kamen korrekte Daten
+
+WICHTIGE ARBEITSWEISE AUS DIESER SESSION
+- Nutzer will KEIN nano benutzen
+- Dateien wurden per Copy/Paste in der Shell angelegt/ersetzt, typischerweise mit:
+  cat > /pfad/datei.py <<'PY'
+  ...
+  PY
+- Bei jeder weiteren Anweisung IMMER dazu sagen, WO der Befehl ausgeführt werden soll:
+  - "auf dem Server"
+  - "auf dem PC"
+
+OFFENE TECHNISCHE UNSAUBERKEIT
+- Die venv liegt faktisch unter /root/.venv
+- Das Projekt liegt unter /opt/fristenradar
+- Das ist funktionsfähig, aber nicht ganz sauber
+- Später könnte man optional auf eine projektlokale venv umstellen:
+  /opt/fristenradar/.venv
+- Das ist aber kein Muss für den nächsten Schritt
+
+NÄCHSTE SINNVOLLE SCHRITTE
+Es gibt jetzt im Grunde 5 sinnvolle Folgearbeiten:
+
+1) API dauerhaft betreiben
+- aktuell wird uvicorn manuell gestartet
+- nächster Schritt wäre:
+  systemd service für uvicorn/FastAPI anlegen
+- optional zusätzlich Reverse Proxy via nginx/caddy, falls extern sauber bereitgestellt werden soll
+
+2) Ausgabeformat verbessern
+- derzeit werden rohe Google-Daten zurückgegeben
+- möglich:
+  - deutsches Datumsformat
+  - Start/Ende sauberer formatiert
+  - "due today / due tomorrow" Logik
+  - Sortierung/Filterung nach Typ oder Zeitraum
+
+3) n/a
+
+4) Konfiguration erweitern
+- Kalender-ID explizit setzen, falls später nicht mehr "primary"
+- Zeitraum per Queryparameter oder .env steuerbar machen
+- mehrere Kalender aggregieren
+
+5) Robustheit verbessern
+- Fehlerbehandlung, wenn token.json fehlt oder abläuft
+- Logging verbessern
+- Health-Endpoint hinzufügen, z. B. /health
+- CORS konfigurieren, falls Frontend auf anderer Domain läuft
+
+EMPFOHLENER NÄCHSTER KONKRETER SCHRITT
+Wenn in der neuen Session nahtlos weitergemacht werden soll, ist die beste erste Frage/Anweisung:
+
+"Wir haben unter /opt/fristenradar ein funktionierendes FastAPI-Backend mit Google-Kalender-OAuth. Bitte mach als Nächstes [einen systemd-Dienst / ein kleines Frontend / schöneres JSON / einen Health-Endpoint]. Und bitte immer dazuschreiben, ob ich den Befehl auf dem Server oder auf dem PC ausführen soll."
+
+KURZVERSION FÜR DIE NEUE SESSION
+- Server: eliteVault
+- Projekt: /opt/fristenradar
+- Venv aktuell: /root/.venv
+- OAuth fertig, token.json vorhanden
+- API läuft und liefert Termine
+- Endpoint: /api/calendar/upcoming
+- Test war erfolgreich mit 2 Kalendereinträgen
+- Nutzer will keine Editoren wie nano, sondern nur Copy/Paste-Befehle
+- Bei jedem Schritt immer dazuschreiben, WO der Befehl auszuführen ist
+
+WENN DIE NEUE SESSION DIREKT MIT EINEM STATUSCHECK STARTEN SOLL
+Dann diese drei Befehle verwenden:
+
+(auf dem Server)
+cd /opt/fristenradar
+source ~/.venv/bin/activate
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+(auf dem Server, in zweiter Session)
+curl http://127.0.0.1:8000/api/calendar/upcoming
+
+(auf dem PC)
+http://192.168.1.17:8000/api/calendar/upcoming
