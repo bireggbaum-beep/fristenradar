@@ -20,7 +20,7 @@ export function App() {
 
   const [selectedItem, setSelectedItem] = useState<FristItem | null>(null);
 
-  const { items: rawItems, loading, loadFromBackend } = useCalendar();
+  const { items: rawItems, loading, error, loadFromBackend } = useCalendar();
   const { saveStatus, getStatus } = useStatusStore();
 
   const items: FristItem[] = useMemo(
@@ -136,7 +136,15 @@ export function App() {
       <main className="home-screen">
         {loading && <div className="loading">Lade...</div>}
 
-        {!loading && heroItem && (
+        {!loading && error && (
+          <section className="empty-state">
+            <div className="empty-state-icon">⚠️</div>
+            <div className="empty-state-text">Backend nicht erreichbar</div>
+            <div style={{ color: '#999', fontSize: '0.85rem', marginTop: '0.5rem' }}>{error}</div>
+          </section>
+        )}
+
+        {!loading && !error && heroItem && (
           <section className="hero-shell">
           <HeroCard
             item={heroItem}
@@ -225,7 +233,7 @@ export function App() {
           </section>
         )}
 
-        {!loading && !heroItem && (
+        {!loading && !error && !heroItem && (
           <section className="empty-state">
             <div className="empty-state-icon">📋</div>
             <div className="empty-state-text">Gerade ist nichts dringend.</div>
