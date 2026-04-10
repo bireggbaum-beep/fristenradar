@@ -1,7 +1,7 @@
 {
   "name": "Fristenradar",
   "short_name": "Fristen",
-  "start_url": "/",
+  "start_url": "/fristenradar/",
   "display": "standalone",
   "orientation": "landscape",
   "background_color": "#0e1117",
