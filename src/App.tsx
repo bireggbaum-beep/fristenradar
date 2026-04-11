@@ -7,6 +7,7 @@ import { TopBar } from './components/TopBar';
 import { HeroCard } from './components/HeroCard';
 import { DashboardTile } from './components/DashboardTile';
 import { DetailOverlay } from './components/DetailOverlay';
+import { SettingsOverlay } from './components/SettingsOverlay';
 import { speakText, stopSpeaking } from './lib/tts';
 import { diffDays } from './lib/urgency';
 
@@ -19,6 +20,7 @@ export function App() {
   });
 
   const [selectedItem, setSelectedItem] = useState<FristItem | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   const { items: rawItems, loading, error, loadFromBackend } = useCalendar();
   const { saveStatus, getStatus } = useStatusStore();
@@ -131,7 +133,7 @@ export function App() {
 
   return (
     <div className="app">
-      <TopBar onRefresh={handleRefresh} onSettings={() => {}} isLoading={loading} />
+      <TopBar onRefresh={handleRefresh} onSettings={() => setShowSettings(true)} isLoading={loading} />
 
       <main className="home-screen">
         {loading && <div className="loading">Lade...</div>}
@@ -248,6 +250,10 @@ export function App() {
           onStatusChange={handleStatusChange}
           today={today}
         />
+      )}
+
+      {showSettings && (
+        <SettingsOverlay onClose={() => setShowSettings(false)} />
       )}
     </div>
   );

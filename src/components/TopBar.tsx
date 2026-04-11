@@ -6,7 +6,7 @@ interface Props {
   isLoading?: boolean;
 }
 
-export function TopBar({ onRefresh, isLoading }: Props) {
+export function TopBar({ onRefresh, onSettings, isLoading }: Props) {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -51,6 +51,15 @@ export function TopBar({ onRefresh, isLoading }: Props) {
           aria-label="Aktualisieren"
         >
           ↻
+        </button>
+        <button
+          type="button"
+          className="settings-btn"
+          onClick={onSettings}
+          title="Einstellungen"
+          aria-label="Einstellungen"
+        >
+          ⚙
         </button>
       </div>
     </header>
