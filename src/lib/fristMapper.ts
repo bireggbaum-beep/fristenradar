@@ -15,16 +15,7 @@ function eventDate(event: GoogleCalendarEvent): Date {
   return parseDate(raw);
 }
 
-/** Returns true if an event should be treated as a Frist (based on calendar or #frist tag). */
-function isFristEvent(event: GoogleCalendarEvent): boolean {
-  if (event.calendarId === 'Fristen & Deadlines') return true;
-  return (event.description ?? '').toLowerCase().includes('#typ') ||
-         (event.description ?? '').toLowerCase().includes('#frist');
-}
-
-export function mapEventToFristItem(event: GoogleCalendarEvent): FristItem | null {
-  if (!isFristEvent(event)) return null;
-
+export function mapEventToFristItem(event: GoogleCalendarEvent): FristItem {
   const tags = parseDescriptionTags(event.description ?? '');
   const type: FristType = tags.typ ?? DEFAULT_TYPE;
 
@@ -53,8 +44,5 @@ export function mapEventToFristItem(event: GoogleCalendarEvent): FristItem | nul
 }
 
 export function mapEventsToFristItems(events: GoogleCalendarEvent[]): FristItem[] {
-  return events.flatMap(e => {
-    const item = mapEventToFristItem(e);
-    return item ? [item] : [];
-  });
+  return events.map(mapEventToFristItem);
 }
