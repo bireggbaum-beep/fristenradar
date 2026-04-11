@@ -54,8 +54,12 @@ export function App() {
   );
 
   const heroItems = useMemo(
-    () => sortedItems.filter(i => i.status !== 'erledigt').slice(0, 6),
-    [sortedItems]
+    () => sortedItems.filter(i => {
+      if (i.status === 'erledigt') return false;
+      const l = urgencyLevel(i, today);
+      return l === 'ÜBERFÄLLIG' || l === 'KRITISCH' || l === 'HEUTE ANFANGEN' || l === 'BALD';
+    }).slice(0, 6),
+    [sortedItems, today]
   );
 
   const heroItemIds = useMemo(() => new Set(heroItems.map(i => i.id)), [heroItems]);
