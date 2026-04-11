@@ -1,4 +1,4 @@
-import type { FristItem } from '../types';
+import type { FristItem, BriefingType } from '../types';
 import { urgencyLevel } from '../lib/urgency';
 
 interface Props {
@@ -6,9 +6,9 @@ interface Props {
   today?: Date;
   onMarkInProgress: () => void;
   onMarkDone: () => void;
-  onPlayBriefing?: () => void;
-  onPlayShortBriefing?: () => void;
-  briefingLoading?: boolean;
+  onPlayBriefing?: (key: string) => void;
+  briefingTypes?: BriefingType[];
+  loadingKey?: string | null;
 }
 
 function formatCountdown(days: number): string {
@@ -41,26 +41,14 @@ function PlayIcon() {
   );
 }
 
-function WaveIcon() {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="audio-icon">
-      <path d="M4 11V9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      <path d="M7 13V7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      <path d="M10 15V5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      <path d="M13 12V8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      <path d="M16 11V9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 export function HeroCard({
   item,
   today = new Date(),
   onMarkInProgress,
   onMarkDone,
   onPlayBriefing,
-  onPlayShortBriefing,
-  briefingLoading = false,
+  briefingTypes = [],
+  loadingKey = null,
 }: Props) {
   const daysLeft = Math.ceil(
     (item.dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
@@ -75,25 +63,18 @@ export function HeroCard({
         <div className="hero-kicker">Heute wichtig</div>
 
         <div className="hero-audio-actions">
-          <button
-            type="button"
-            className={`hero-audio-btn${briefingLoading ? ' hero-audio-btn--loading' : ''}`}
-            onClick={onPlayBriefing}
-            disabled={briefingLoading}
-          >
-            <PlayIcon />
-            <span>{briefingLoading ? '…' : 'Briefing'}</span>
-          </button>
-
-          <button
-            type="button"
-            className="hero-audio-btn"
-            onClick={onPlayShortBriefing}
-            disabled={briefingLoading}
-          >
-            <WaveIcon />
-            <span>Kurz</span>
-          </button>
+          {briefingTypes.map(type => (
+            <button
+              key={type.key}
+              type="button"
+              className={`hero-audio-btn${loadingKey === type.key ? ' hero-audio-btn--loading' : ''}`}
+              onClick={() => onPlayBriefing?.(type.key)}
+              disabled={loadingKey !== null}
+            >
+              <PlayIcon />
+              <span>{loadingKey === type.key ? '…' : type.name}</span>
+            </button>
+          ))}
         </div>
       </div>
 

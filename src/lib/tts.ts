@@ -138,3 +138,18 @@ export async function fetchBriefingText(): Promise<string> {
   const data = await res.json();
   return data.text as string;
 }
+
+export async function playBriefingAudio(key: string, voice: string): Promise<void> {
+  const url = `/api/briefing/audio?key=${encodeURIComponent(key)}&voice=${encodeURIComponent(voice)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Briefing-Fehler ${res.status}`);
+  const blob = await res.blob();
+  const audioUrl = URL.createObjectURL(blob);
+  const audio = new Audio(audioUrl);
+  await new Promise<void>((resolve, reject) => {
+    audio.onended = () => resolve();
+    audio.onerror = () => reject(new Error('Audio-Fehler'));
+    audio.play();
+  });
+  URL.revokeObjectURL(audioUrl);
+}

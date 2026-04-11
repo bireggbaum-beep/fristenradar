@@ -40,3 +40,12 @@ export interface GoogleCalendarEvent {
   };
   calendarId?: string;
 }
+
+export interface BriefingType {
+  key: string;
+  name: string;
+  days: number;
+  prompt: string;
+  active: boolean;
+}
+

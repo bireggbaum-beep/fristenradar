@@ -8,8 +8,7 @@ import { HeroCard } from './components/HeroCard';
 import { DashboardTile } from './components/DashboardTile';
 import { DetailOverlay } from './components/DetailOverlay';
 import { SettingsOverlay } from './components/SettingsOverlay';
-import { speakViaBackend, fetchBriefingText } from './lib/tts';
-import { diffDays } from './lib/urgency';
+import { playBriefingAudio } from './lib/tts';
 import { useSettings } from './hooks/useSettings';
 
 
@@ -22,9 +21,9 @@ export function App() {
 
   const [selectedItem, setSelectedItem] = useState<FristItem | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [briefingLoading, setBriefingLoading] = useState(false);
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [briefingError, setBriefingError] = useState<string | null>(null);
-  const { voice, setVoice } = useSettings();
+  const { voice, setVoice, briefingTypes, saveType, deleteType } = useSettings();
 
   const { items: rawItems, loading, error, loadFromBackend } = useCalendar();
   const { saveStatus, getStatus } = useStatusStore();
@@ -80,43 +79,20 @@ export function App() {
   const soonItems = soon.filter(i => i.id !== heroItem?.id).slice(0, 2);
   const radarItems = radar.filter(i => i.id !== heroItem?.id).slice(0, 2);
 
-  async function handlePlayBriefing() {
-    if (briefingLoading) return;
-    setBriefingLoading(true);
+  async function handlePlayBriefing(key: string) {
+    if (loadingKey !== null) return;
+    setLoadingKey(key);
     setBriefingError(null);
     try {
-      const text = await fetchBriefingText();
-      await speakViaBackend(text, voice);
+      await playBriefingAudio(key, voice);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('Briefing-Fehler:', err);
       setBriefingError(msg);
     } finally {
-      setBriefingLoading(false);
+      setLoadingKey(null);
     }
   }
-
-  async function handlePlayShortBriefing() {
-    if (!heroItem || briefingLoading) return;
-    const days = diffDays(heroItem.dueDate, today);
-    const countdown = days < 0 ? 'ist bereits überfällig'
-      : days === 0 ? 'ist heute fällig'
-      : days === 1 ? 'ist morgen fällig'
-      : `ist in ${days} Tagen fällig`;
-    const text = `Heute wichtig: ${heroItem.title}. ${countdown}.`;
-    setBriefingLoading(true);
-    setBriefingError(null);
-    try {
-      await speakViaBackend(text, voice);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('Kurz-Briefing-Fehler:', err);
-      setBriefingError(msg);
-    } finally {
-      setBriefingLoading(false);
-    }
-  }
-
 
   return (
     <div className="app">
@@ -135,28 +111,24 @@ export function App() {
 
         {!loading && !error && heroItem && (
           <section className="hero-shell">
-          <HeroCard
-            item={heroItem}
-            today={today}
-            onMarkInProgress={() =>
-              handleStatusChange(heroItem.id, 'in bearbeitung')
-            }
-            onMarkDone={() =>
-              handleStatusChange(heroItem.id, 'erledigt')
-            }
-            onPlayBriefing={handlePlayBriefing}
-            onPlayShortBriefing={handlePlayShortBriefing}
-            briefingLoading={briefingLoading}
-          />
-          {briefingError && (
-            <div style={{ color: '#e05', fontSize: '0.8rem', padding: '0.5rem 0.25rem' }}>
-              ⚠ {briefingError}
-            </div>
-          )}
-
-
-
-
+            <HeroCard
+              item={heroItem}
+              today={today}
+              onMarkInProgress={() =>
+                handleStatusChange(heroItem.id, 'in bearbeitung')
+              }
+              onMarkDone={() =>
+                handleStatusChange(heroItem.id, 'erledigt')
+              }
+              onPlayBriefing={handlePlayBriefing}
+              briefingTypes={briefingTypes}
+              loadingKey={loadingKey}
+            />
+            {briefingError && (
+              <div style={{ color: '#e05', fontSize: '0.8rem', padding: '0.5rem 0.25rem' }}>
+                ⚠ {briefingError}
+              </div>
+            )}
 
             <div className="preview-grid">
               <section className="preview-card">
@@ -244,6 +216,9 @@ export function App() {
           onClose={() => setShowSettings(false)}
           voice={voice}
           onVoiceChange={setVoice}
+          briefingTypes={briefingTypes}
+          onSaveType={saveType}
+          onDeleteType={deleteType}
         />
       )}
     </div>
