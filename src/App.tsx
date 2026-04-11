@@ -23,6 +23,7 @@ export function App() {
   const [selectedItem, setSelectedItem] = useState<FristItem | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [briefingLoading, setBriefingLoading] = useState(false);
+  const [briefingError, setBriefingError] = useState<string | null>(null);
   const { voice, setVoice } = useSettings();
 
   const { items: rawItems, loading, error, loadFromBackend } = useCalendar();
@@ -82,11 +83,14 @@ export function App() {
   async function handlePlayBriefing() {
     if (briefingLoading) return;
     setBriefingLoading(true);
+    setBriefingError(null);
     try {
       const text = await fetchBriefingText();
       await speakViaBackend(text, voice);
-    } catch {
-      // fallback: nichts tun
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('Briefing-Fehler:', err);
+      setBriefingError(msg);
     } finally {
       setBriefingLoading(false);
     }
@@ -101,10 +105,13 @@ export function App() {
       : `ist in ${days} Tagen fällig`;
     const text = `Heute wichtig: ${heroItem.title}. ${countdown}.`;
     setBriefingLoading(true);
+    setBriefingError(null);
     try {
       await speakViaBackend(text, voice);
-    } catch {
-      // fallback: nichts tun
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('Kurz-Briefing-Fehler:', err);
+      setBriefingError(msg);
     } finally {
       setBriefingLoading(false);
     }
@@ -141,6 +148,11 @@ export function App() {
             onPlayShortBriefing={handlePlayShortBriefing}
             briefingLoading={briefingLoading}
           />
+          {briefingError && (
+            <div style={{ color: '#e05', fontSize: '0.8rem', padding: '0.5rem 0.25rem' }}>
+              ⚠ {briefingError}
+            </div>
+          )}
 
 
 
