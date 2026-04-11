@@ -23,7 +23,7 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [briefingError, setBriefingError] = useState<string | null>(null);
-  const { voice, setVoice, briefingTypes, saveType, deleteType } = useSettings();
+  const { voice, setVoice, cycleInterval, setCycleInterval, briefingTypes, saveType, deleteType } = useSettings();
 
   const { items: rawItems, loading, error, loadFromBackend } = useCalendar();
   const { saveStatus, getStatus } = useStatusStore();
@@ -57,6 +57,11 @@ export function App() {
     [sortedItems, today]
   );
 
+  const heroItems = useMemo(
+    () => sortedItems.filter(i => i.status !== 'erledigt').slice(0, 6),
+    [sortedItems]
+  );
+
   useEffect(() => {
     loadFromBackend();
   }, [loadFromBackend]);
@@ -75,7 +80,7 @@ export function App() {
     [saveStatus, selectedItem]
   );
 
-  const heroItem = critical[0] || soon[0] || radar[0];
+  const heroItem = heroItems[0];
   const soonItems = soon.filter(i => i.id !== heroItem?.id).slice(0, 2);
   const radarItems = radar.filter(i => i.id !== heroItem?.id).slice(0, 2);
 
@@ -113,21 +118,18 @@ export function App() {
           </section>
         )}
 
-        {!loading && !error && heroItem && (
+        {!loading && !error && heroItems.length > 0 && (
           <section className="hero-shell">
             <HeroCard
-              item={heroItem}
+              items={heroItems}
               today={today}
-              onMarkInProgress={() =>
-                handleStatusChange(heroItem.id, 'in bearbeitung')
-              }
-              onMarkDone={() =>
-                handleStatusChange(heroItem.id, 'erledigt')
-              }
+              onMarkInProgress={(id) => handleStatusChange(id, 'in bearbeitung')}
+              onMarkDone={(id) => handleStatusChange(id, 'erledigt')}
               onPlayBriefing={handlePlayBriefing}
               onRegenerateBriefing={handleRegenerateBriefing}
               briefingTypes={briefingTypes}
               loadingKey={loadingKey}
+              cycleInterval={cycleInterval}
             />
             {briefingError && (
               <div style={{ color: '#e05', fontSize: '0.8rem', padding: '0.5rem 0.25rem' }}>
@@ -227,6 +229,8 @@ export function App() {
           onClose={() => setShowSettings(false)}
           voice={voice}
           onVoiceChange={setVoice}
+          cycleInterval={cycleInterval}
+          onCycleIntervalChange={setCycleInterval}
           briefingTypes={briefingTypes}
           onSaveType={saveType}
           onDeleteType={deleteType}

@@ -28,6 +28,8 @@ interface Props {
   onClose: () => void;
   voice: string;
   onVoiceChange: (voice: string) => void;
+  cycleInterval: number;
+  onCycleIntervalChange: (n: number) => void;
   briefingTypes: BriefingType[];
   onSaveType: (type: BriefingType) => Promise<void>;
   onDeleteType: (key: string) => Promise<void>;
@@ -37,6 +39,8 @@ export function SettingsOverlay({
   onClose,
   voice,
   onVoiceChange,
+  cycleInterval,
+  onCycleIntervalChange,
   briefingTypes,
   onSaveType,
   onDeleteType,
@@ -135,6 +139,22 @@ export function SettingsOverlay({
             </select>
             <div className="settings-hint">
               Edge TTS via Backend — gilt für alle Briefing-Typen.
+            </div>
+          </div>
+
+          <div className="settings-section">
+            <div className="settings-section-title">Anzeige</div>
+            <div className="briefing-type-days-row">
+              <span className="settings-hint">Wechsel-Intervall:</span>
+              <input
+                type="number"
+                className="settings-input settings-input--narrow"
+                value={cycleInterval}
+                min={3}
+                max={60}
+                onChange={e => onCycleIntervalChange(Math.max(3, Number(e.target.value)))}
+              />
+              <span className="settings-hint">Sek.</span>
             </div>
           </div>
 

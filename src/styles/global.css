@@ -329,10 +329,66 @@ button {
   max-width: 11ch;
 }
 
+.hero-content {
+  position: relative;
+  z-index: 1;
+  margin-top: 20px;
+  transition: opacity 0.25s ease;
+}
+
+.hero-content--hidden {
+  opacity: 0;
+}
+
+.hero-urgency-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.hero-urgency {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid currentColor;
+}
+
+.hero-urgency--red   { color: var(--accent-red);   background: rgba(248,113,113,0.1); }
+.hero-urgency--amber { color: var(--accent-amber);  background: rgba(246,200,95,0.08); }
+.hero-urgency--blue  { color: var(--accent-blue);   background: rgba(127,179,255,0.08); }
+
+.hero-countdown-badge {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.hero-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.hero-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.hero-dot--active {
+  background: rgba(255,255,255,0.7);
+  transform: scale(1.3);
+}
+
 .hero-focus {
   position: relative;
   z-index: 1;
-  margin-top: 24px;
 }
 
 .hero-focus-title {
@@ -354,15 +410,10 @@ button {
   position: relative;
   z-index: 1;
   display: flex;
-  flex-direction: column;
-  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   margin-top: 34px;
-}
-
-.hero-countdown {
-  font-size: 17px;
-  font-weight: 500;
-  color: var(--text-secondary);
 }
 
 .hero-actions {
