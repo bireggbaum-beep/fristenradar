@@ -14,21 +14,23 @@ interface Props {
   cycleInterval?: number;
 }
 
-const URGENCY_LABEL: Record<string, string> = {
-  'ÜBERFÄLLIG':     'Überfällig',
-  'KRITISCH':       'Kritisch',
-  'HEUTE ANFANGEN': 'Heute anfangen',
-  'BALD':           'Bald fällig',
-  'RADAR':          'Im Blick',
-};
+function getHeroMessage(item: FristItem, today: Date): string {
+  const level = urgencyLevel(item, today);
+  const t = item.title;
+  if (level === 'ÜBERFÄLLIG')     return `${t} muss sofort geklärt werden.`;
+  if (level === 'KRITISCH')       return `${t} braucht jetzt deine Aufmerksamkeit.`;
+  if (level === 'HEUTE ANFANGEN') return `Heute solltest du ${t} anstoßen.`;
+  if (level === 'BALD')           return `${t} rückt näher — plan es ein.`;
+  return `Als Nächstes wichtig: ${t}.`;
+}
 
-const URGENCY_CLASS: Record<string, string> = {
-  'ÜBERFÄLLIG':     'hero-urgency--red',
-  'KRITISCH':       'hero-urgency--red',
-  'HEUTE ANFANGEN': 'hero-urgency--amber',
-  'BALD':           'hero-urgency--amber',
-  'RADAR':          'hero-urgency--blue',
-};
+function formatCountdown(days: number): string {
+  if (days < 0)  return 'überfällig';
+  if (days === 0) return 'heute';
+  if (days === 1) return 'morgen';
+  if (days <= 14) return `in ${days} Tagen`;
+  return `in ${Math.round(days / 7)} Wochen`;
+}
 
 function PlayIcon() {
   return (
@@ -73,12 +75,9 @@ export function HeroCard({
 
   if (!item) return null;
 
-  const level = urgencyLevel(item, today);
   const daysLeft = Math.ceil((item.dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  const countdown = daysLeft < 0 ? 'überfällig'
-    : daysLeft === 0 ? 'heute fällig'
-    : daysLeft === 1 ? 'morgen fällig'
-    : `in ${daysLeft} Tagen`;
+  const message = getHeroMessage(item, today);
+  const countdown = formatCountdown(daysLeft);
 
   return (
     <section className="hero-card">
@@ -109,12 +108,7 @@ export function HeroCard({
       </div>
 
       <div className={`hero-content${visible ? '' : ' hero-content--hidden'}`}>
-        <div className="hero-urgency-row">
-          <span className={`hero-urgency ${URGENCY_CLASS[level] ?? ''}`}>
-            {URGENCY_LABEL[level] ?? level}
-          </span>
-          <span className="hero-countdown-badge">{countdown}</span>
-        </div>
+        <h1 className="hero-message">{message}</h1>
 
         <div className="hero-focus">
           <div className="hero-focus-title">{item.title}</div>
@@ -123,13 +117,16 @@ export function HeroCard({
       </div>
 
       <div className="hero-footer">
-        <div className="hero-actions">
-          <button type="button" className="hero-btn hero-btn--primary" onClick={() => onMarkInProgress(item.id)}>
-            In Bearbeitung
-          </button>
-          <button type="button" className="hero-btn hero-btn--secondary" onClick={() => onMarkDone(item.id)}>
-            Erledigt
-          </button>
+        <div className="hero-footer-left">
+          <div className="hero-countdown">{countdown}</div>
+          <div className="hero-actions">
+            <button type="button" className="hero-btn hero-btn--primary" onClick={() => onMarkInProgress(item.id)}>
+              In Bearbeitung
+            </button>
+            <button type="button" className="hero-btn hero-btn--secondary" onClick={() => onMarkDone(item.id)}>
+              Erledigt
+            </button>
+          </div>
         </div>
 
         {items.length > 1 && (

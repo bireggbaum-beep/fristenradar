@@ -389,6 +389,7 @@ button {
 .hero-focus {
   position: relative;
   z-index: 1;
+  margin-top: 24px;
 }
 
 .hero-focus-title {
@@ -410,10 +411,22 @@ button {
   position: relative;
   z-index: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
   margin-top: 34px;
+}
+
+.hero-footer-left {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.hero-countdown {
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 
 .hero-actions {
