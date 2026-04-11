@@ -65,7 +65,7 @@ export function App() {
     () => sortedItems.filter(i => {
       if (i.status === 'erledigt') return false;
       const l = urgencyLevel(i, today);
-      return l === 'ÜBERFÄLLIG' || l === 'KRITISCH' || l === 'HEUTE ANFANGEN' || l === 'BALD';
+      return l === 'ÜBERFÄLLIG' || l === 'KRITISCH' || l === 'HEUTE ANFANGEN';
     }).slice(0, 6),
     [sortedItems, today]
   );
