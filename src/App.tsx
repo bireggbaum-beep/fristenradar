@@ -57,9 +57,15 @@ export function App() {
     [sortedItems]
   );
 
+  const heroItemIds = useMemo(() => new Set(heroItems.map(i => i.id)), [heroItems]);
+
   const quietItems = useMemo(
-    () => sortedItems.filter(i => i.status !== 'erledigt' && urgencyLevel(i, today) === 'RADAR'),
-    [sortedItems, today]
+    () => sortedItems.filter(i =>
+      i.status !== 'erledigt' &&
+      urgencyLevel(i, today) === 'RADAR' &&
+      !heroItemIds.has(i.id)
+    ),
+    [sortedItems, today, heroItemIds]
   );
 
   const [quietOffset, setQuietOffset] = useState(0);
@@ -68,7 +74,7 @@ export function App() {
     if (quietItems.length <= 3) return;
     const t = setInterval(() => {
       setQuietOffset(o => (o + 3) % quietItems.length);
-    }, cycleInterval * 1000);
+    }, cycleInterval * 2 * 1000);
     return () => clearInterval(t);
   }, [quietItems.length, cycleInterval]);
 
