@@ -781,50 +781,76 @@ button {
 .briefing-type-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 2px;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 2px;
   border-bottom: 1px solid var(--border);
 }
 
+.briefing-type-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .briefing-type-name {
-  flex: 1;
   font-size: 14px;
   font-weight: 500;
   color: var(--text-primary);
 }
 
 .briefing-type-days {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
-  min-width: 26px;
 }
 
-.briefing-type-toggle {
-  font-size: 13px;
-  color: var(--text-muted);
-  padding: 2px 5px;
-  border-radius: 4px;
-  transition: color 0.15s;
+.briefing-type-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
-.briefing-type-toggle--active {
+.briefing-type-active-btn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.briefing-type-active-btn--on {
+  background: rgba(98, 195, 112, 0.12);
+  border-color: rgba(98, 195, 112, 0.35);
   color: var(--accent-green);
 }
 
-.briefing-type-btn {
-  font-size: 14px;
-  color: var(--text-muted);
-  padding: 4px 6px;
+.briefing-type-edit-btn {
+  font-size: 12px;
+  padding: 3px 8px;
   border-radius: 6px;
+  color: var(--text-muted);
   transition: background 0.15s, color 0.15s;
 }
 
-.briefing-type-btn:hover {
+.briefing-type-edit-btn:hover {
   background: rgba(255, 255, 255, 0.07);
   color: var(--text-primary);
 }
 
-.briefing-type-btn--del:hover {
+.briefing-type-del-btn {
+  font-size: 14px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  transition: background 0.15s, color 0.15s;
+}
+
+.briefing-type-del-btn:hover {
   background: rgba(248, 113, 113, 0.1);
   color: var(--accent-red);
 }

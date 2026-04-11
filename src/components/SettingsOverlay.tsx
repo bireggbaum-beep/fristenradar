@@ -157,22 +157,27 @@ export function SettingsOverlay({
                   />
                 ) : (
                   <div className="briefing-type-row">
-                    <span className="briefing-type-name">{type.name}</span>
-                    <span className="briefing-type-days">{type.days}d</span>
-                    <button
-                      className={`briefing-type-toggle${type.active ? ' briefing-type-toggle--active' : ''}`}
-                      onClick={() => handleToggleActive(type)}
-                      title={type.active ? 'Cron: aktiv' : 'Cron: inaktiv'}
-                    >
-                      {type.active ? '●' : '○'}
-                    </button>
-                    <button className="briefing-type-btn" onClick={() => startEdit(type)}>✎</button>
-                    <button
-                      className="briefing-type-btn briefing-type-btn--del"
-                      onClick={() => handleDelete(type.key)}
-                    >
-                      ✕
-                    </button>
+                    <div className="briefing-type-info">
+                      <span className="briefing-type-name">{type.name}</span>
+                      <span className="briefing-type-days">{type.days} Tage</span>
+                    </div>
+                    <div className="briefing-type-actions">
+                      <button
+                        className={`briefing-type-active-btn${type.active ? ' briefing-type-active-btn--on' : ''}`}
+                        onClick={() => handleToggleActive(type)}
+                      >
+                        {type.active ? 'Cron AN' : 'Cron AUS'}
+                      </button>
+                      <button className="briefing-type-edit-btn" onClick={() => startEdit(type)}>
+                        Bearbeiten
+                      </button>
+                      <button
+                        className="briefing-type-del-btn"
+                        onClick={() => handleDelete(type.key)}
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
