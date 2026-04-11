@@ -8,6 +8,7 @@ interface Props {
   onMarkDone: () => void;
   onPlayBriefing?: () => void;
   onPlayShortBriefing?: () => void;
+  briefingLoading?: boolean;
 }
 
 function formatCountdown(days: number): string {
@@ -59,6 +60,7 @@ export function HeroCard({
   onMarkDone,
   onPlayBriefing,
   onPlayShortBriefing,
+  briefingLoading = false,
 }: Props) {
   const daysLeft = Math.ceil(
     (item.dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
@@ -75,17 +77,19 @@ export function HeroCard({
         <div className="hero-audio-actions">
           <button
             type="button"
-            className="hero-audio-btn"
+            className={`hero-audio-btn${briefingLoading ? ' hero-audio-btn--loading' : ''}`}
             onClick={onPlayBriefing}
+            disabled={briefingLoading}
           >
             <PlayIcon />
-            <span>Briefing</span>
+            <span>{briefingLoading ? '…' : 'Briefing'}</span>
           </button>
 
           <button
             type="button"
             className="hero-audio-btn"
             onClick={onPlayShortBriefing}
+            disabled={briefingLoading}
           >
             <WaveIcon />
             <span>Kurz</span>

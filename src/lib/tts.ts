@@ -114,3 +114,27 @@ export async function debugVoices() {
     german: isGermanVoice(v),
   }));
 }
+
+const BACKEND_URL = 'http://192.168.1.17:8000';
+
+export async function speakViaBackend(text: string, voice = 'de-DE-KatjaNeural'): Promise<void> {
+  const url = `${BACKEND_URL}/api/tts?text=${encodeURIComponent(text)}&voice=${encodeURIComponent(voice)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`TTS-Fehler: ${res.status}`);
+  const blob = await res.blob();
+  const audioUrl = URL.createObjectURL(blob);
+  const audio = new Audio(audioUrl);
+  await new Promise<void>((resolve, reject) => {
+    audio.onended = () => resolve();
+    audio.onerror = () => reject(new Error('Audio-Fehler'));
+    audio.play();
+  });
+  URL.revokeObjectURL(audioUrl);
+}
+
+export async function fetchBriefingText(): Promise<string> {
+  const res = await fetch(`${BACKEND_URL}/api/briefing`);
+  if (!res.ok) throw new Error(`Briefing-Fehler: ${res.status}`);
+  const data = await res.json();
+  return data.text as string;
+}

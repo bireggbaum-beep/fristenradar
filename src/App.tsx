@@ -8,8 +8,9 @@ import { HeroCard } from './components/HeroCard';
 import { DashboardTile } from './components/DashboardTile';
 import { DetailOverlay } from './components/DetailOverlay';
 import { SettingsOverlay } from './components/SettingsOverlay';
-import { speakText, stopSpeaking } from './lib/tts';
+import { speakViaBackend, fetchBriefingText } from './lib/tts';
 import { diffDays } from './lib/urgency';
+import { useSettings } from './hooks/useSettings';
 
 
 export function App() {
@@ -21,6 +22,8 @@ export function App() {
 
   const [selectedItem, setSelectedItem] = useState<FristItem | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [briefingLoading, setBriefingLoading] = useState(false);
+  const { voice, setVoice } = useSettings();
 
   const { items: rawItems, loading, error, loadFromBackend } = useCalendar();
   const { saveStatus, getStatus } = useStatusStore();
@@ -76,58 +79,35 @@ export function App() {
   const soonItems = soon.filter(i => i.id !== heroItem?.id).slice(0, 2);
   const radarItems = radar.filter(i => i.id !== heroItem?.id).slice(0, 2);
 
-    function formatCountdownForSpeech(days: number): string {
-    if (days < 0) return 'ist bereits überfällig';
-    if (days === 0) return 'ist heute fällig';
-    if (days === 1) return 'ist morgen fällig';
-    if (days <= 14) return `ist in ${days} Tagen fällig`;
-    return `ist in ${Math.round(days / 7)} Wochen fällig`;
-  }
-
-  function buildShortBriefing() {
-    if (!heroItem) return 'Gerade ist nichts dringend.';
-
-    const days = diffDays(heroItem.dueDate, today);
-    return `Heute wichtig: ${heroItem.title}. ${formatCountdownForSpeech(days)}.`;
-  }
-
-  function buildFullBriefing() {
-    if (!heroItem) {
-      return 'Guten Morgen. Gerade ist nichts dringend.';
+  async function handlePlayBriefing() {
+    if (briefingLoading) return;
+    setBriefingLoading(true);
+    try {
+      const text = await fetchBriefingText();
+      await speakViaBackend(text, voice);
+    } catch {
+      // fallback: nichts tun
+    } finally {
+      setBriefingLoading(false);
     }
+  }
 
-    const heroDays = diffDays(heroItem.dueDate, today);
-
-    const soonText =
-      soonItems.length > 0
-        ? `Bald kritisch danach: ${soonItems
-            .map(item => {
-              const d = diffDays(item.dueDate, today);
-              return `${item.title}, ${formatCountdownForSpeech(d)}`;
-            })
-            .join('. ')}.`
-        : 'Danach wird gerade nichts bald kritisch.';
-
-    const radarText =
-      radarItems.length > 0
-        ? `Im Blick: ${radarItems
-            .map(item => {
-              const d = diffDays(item.dueDate, today);
-              return `${item.title}, ${formatCountdownForSpeech(d)}`;
-            })
-            .join('. ')}.`
-        : 'Der Rest bleibt im Moment ruhig.';
-
-    return [
-      'Guten Morgen.',
-      `Heute wichtig: ${heroItem.title}.`,
-      formatCountdownForSpeech(heroDays) + '.',
-      heroItem.note ? `${heroItem.note}.` : '',
-      soonText,
-      radarText,
-    ]
-      .filter(Boolean)
-      .join(' ');
+  async function handlePlayShortBriefing() {
+    if (!heroItem || briefingLoading) return;
+    const days = diffDays(heroItem.dueDate, today);
+    const countdown = days < 0 ? 'ist bereits überfällig'
+      : days === 0 ? 'ist heute fällig'
+      : days === 1 ? 'ist morgen fällig'
+      : `ist in ${days} Tagen fällig`;
+    const text = `Heute wichtig: ${heroItem.title}. ${countdown}.`;
+    setBriefingLoading(true);
+    try {
+      await speakViaBackend(text, voice);
+    } catch {
+      // fallback: nichts tun
+    } finally {
+      setBriefingLoading(false);
+    }
   }
 
 
@@ -157,14 +137,9 @@ export function App() {
             onMarkDone={() =>
               handleStatusChange(heroItem.id, 'erledigt')
             }
-            onPlayBriefing={() => {
-              stopSpeaking();
-              speakText(buildFullBriefing(), { rate: 0.95, pitch: 1 });
-            }}
-            onPlayShortBriefing={() => {
-              stopSpeaking();
-              speakText(buildShortBriefing(), { rate: 0.98, pitch: 1 });
-            }}
+            onPlayBriefing={handlePlayBriefing}
+            onPlayShortBriefing={handlePlayShortBriefing}
+            briefingLoading={briefingLoading}
           />
 
 
@@ -253,7 +228,11 @@ export function App() {
       )}
 
       {showSettings && (
-        <SettingsOverlay onClose={() => setShowSettings(false)} />
+        <SettingsOverlay
+          onClose={() => setShowSettings(false)}
+          voice={voice}
+          onVoiceChange={setVoice}
+        />
       )}
     </div>
   );
