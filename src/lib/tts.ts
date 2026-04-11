@@ -140,7 +140,8 @@ export async function fetchBriefingText(): Promise<string> {
 }
 
 export async function playBriefingAudio(key: string, voice: string, force = false): Promise<void> {
-  const url = `/api/briefing/audio?key=${encodeURIComponent(key)}&voice=${encodeURIComponent(voice)}${force ? '&force=true' : ''}`;
+  const bust = force ? `&_t=${Date.now()}` : '';
+  const url = `/api/briefing/audio?key=${encodeURIComponent(key)}&voice=${encodeURIComponent(voice)}${force ? '&force=true' : ''}${bust}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Briefing-Fehler ${res.status}`);
   const blob = await res.blob();
