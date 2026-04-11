@@ -115,7 +115,7 @@ export async function debugVoices() {
   }));
 }
 
-const BACKEND_URL = 'http://192.168.1.17:8000';
+const BACKEND_URL = '';
 
 export async function speakViaBackend(text: string, voice = 'de-DE-KatjaNeural'): Promise<void> {
   const url = `${BACKEND_URL}/api/tts?text=${encodeURIComponent(text)}&voice=${encodeURIComponent(voice)}`;

@@ -60,10 +60,9 @@ export async function fetchEventsFromCalendar(
 }
 /** Fetch events from our own backend (eliteVault server). */
 export async function fetchEventsFromBackend(
-  baseUrl: string = 'http://192.168.1.17:8000',
   days: number = 90
 ): Promise<GoogleCalendarEvent[]> {
-  const res = await fetch(`${baseUrl}/api/calendar/upcoming?days=${days}`);
+  const res = await fetch(`/api/calendar/upcoming?days=${days}`);
   if (!res.ok) {
     throw new Error(`Backend error: ${res.status} ${res.statusText}`);
   }
