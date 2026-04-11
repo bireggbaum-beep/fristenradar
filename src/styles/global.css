@@ -531,8 +531,6 @@ button {
 .quiet-list {
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  max-height: 220px;
 }
 
 .quiet-row {

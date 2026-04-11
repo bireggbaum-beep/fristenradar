@@ -53,7 +53,7 @@ export function App() {
   );
 
   const heroItems = useMemo(
-    () => sortedItems.filter(i => i.status !== 'erledigt'),
+    () => sortedItems.filter(i => i.status !== 'erledigt').slice(0, 6),
     [sortedItems]
   );
 
@@ -61,6 +61,16 @@ export function App() {
     () => sortedItems.filter(i => i.status !== 'erledigt' && urgencyLevel(i, today) === 'RADAR'),
     [sortedItems, today]
   );
+
+  const [quietOffset, setQuietOffset] = useState(0);
+
+  useEffect(() => {
+    if (quietItems.length <= 3) return;
+    const t = setInterval(() => {
+      setQuietOffset(o => (o + 3) % quietItems.length);
+    }, cycleInterval * 1000);
+    return () => clearInterval(t);
+  }, [quietItems.length, cycleInterval]);
 
   useEffect(() => {
     loadFromBackend();
@@ -173,16 +183,21 @@ export function App() {
                 </div>
                 <div className="quiet-list">
                   {quietItems.length > 0 ? (
-                    quietItems.map(item => {
-                      const days = Math.ceil((item.dueDate.getTime() - today.getTime()) / 86400000);
-                      const label = days <= 0 ? 'überfällig' : days === 1 ? 'morgen' : days <= 14 ? `in ${days} Tagen` : days <= 60 ? `in ${Math.round(days / 7)} Wochen` : `in ${Math.round(days / 30)} Monaten`;
-                      return (
-                        <button key={item.id} className="quiet-row" onClick={() => setSelectedItem(item)}>
-                          <span className="quiet-title">{item.title}</span>
-                          <span className="quiet-when">{label}</span>
-                        </button>
-                      );
-                    })
+                    (() => {
+                      const slice = quietItems.length <= 3
+                        ? quietItems
+                        : [...quietItems, ...quietItems].slice(quietOffset, quietOffset + 3);
+                      return slice.map(item => {
+                        const days = Math.ceil((item.dueDate.getTime() - today.getTime()) / 86400000);
+                        const label = days <= 0 ? 'überfällig' : days === 1 ? 'morgen' : days <= 14 ? `in ${days} Tagen` : days <= 60 ? `in ${Math.round(days / 7)} Wochen` : `in ${Math.round(days / 30)} Monaten`;
+                        return (
+                          <button key={item.id} className="quiet-row" onClick={() => setSelectedItem(item)}>
+                            <span className="quiet-title">{item.title}</span>
+                            <span className="quiet-when">{label}</span>
+                          </button>
+                        );
+                      });
+                    })()
                   ) : (
                     <div className="preview-empty">Gerade ist der Rest noch ruhig.</div>
                   )}
