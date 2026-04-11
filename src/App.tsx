@@ -52,14 +52,14 @@ export function App() {
     [sortedItems, today]
   );
 
-  const radar = useMemo(
-    () => sortedItems.filter(i => urgencyLevel(i, today) === 'RADAR'),
-    [sortedItems, today]
+  const heroItems = useMemo(
+    () => sortedItems.filter(i => i.status !== 'erledigt'),
+    [sortedItems]
   );
 
-  const heroItems = useMemo(
-    () => sortedItems.filter(i => i.status !== 'erledigt').slice(0, 6),
-    [sortedItems]
+  const quietItems = useMemo(
+    () => sortedItems.filter(i => i.status !== 'erledigt' && urgencyLevel(i, today) === 'RADAR'),
+    [sortedItems, today]
   );
 
   useEffect(() => {
@@ -82,7 +82,6 @@ export function App() {
 
   const heroItem = heroItems[0];
   const soonItems = soon.filter(i => i.id !== heroItem?.id).slice(0, 2);
-  const radarItems = radar.filter(i => i.id !== heroItem?.id).slice(0, 2);
 
   async function handlePlayBriefing(key: string, force = false) {
     if (loadingKey !== null) return;
@@ -171,27 +170,19 @@ export function App() {
               <section className="preview-card">
                 <div className="preview-head">
                   <h2 className="preview-title">Im Blick</h2>
-                  {radar.length > 2 && (
-                    <button
-                      className="preview-more"
-                      onClick={() => setSelectedItem(radar[0])}
-                    >
-                      +{radar.length - 2} weitere
-                    </button>
-                  )}
                 </div>
-
-                <div className="preview-list">
-                  {radarItems.length > 0 ? (
-                    radarItems.map(item => (
-                      <DashboardTile
-                        key={item.id}
-                        item={item}
-                        onClick={setSelectedItem}
-                        variant="compact"
-                        today={today}
-                      />
-                    ))
+                <div className="quiet-list">
+                  {quietItems.length > 0 ? (
+                    quietItems.map(item => {
+                      const days = Math.ceil((item.dueDate.getTime() - today.getTime()) / 86400000);
+                      const label = days <= 0 ? 'überfällig' : days === 1 ? 'morgen' : days <= 14 ? `in ${days} Tagen` : days <= 60 ? `in ${Math.round(days / 7)} Wochen` : `in ${Math.round(days / 30)} Monaten`;
+                      return (
+                        <button key={item.id} className="quiet-row" onClick={() => setSelectedItem(item)}>
+                          <span className="quiet-title">{item.title}</span>
+                          <span className="quiet-when">{label}</span>
+                        </button>
+                      );
+                    })
                   ) : (
                     <div className="preview-empty">Gerade ist der Rest noch ruhig.</div>
                   )}

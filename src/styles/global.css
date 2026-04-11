@@ -479,8 +479,8 @@ button {
 
 .preview-grid {
   min-height: 0;
-  display: grid;
-  grid-template-rows: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 18px;
 }
 
@@ -524,6 +524,54 @@ button {
 .preview-empty {
   color: var(--text-muted);
   font-size: 15px;
+}
+
+/* ===== Quiet list ===== */
+
+.quiet-list {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-height: 220px;
+}
+
+.quiet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 2px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: opacity 0.15s;
+}
+
+.quiet-row:last-child {
+  border-bottom: none;
+}
+
+.quiet-row:hover {
+  opacity: 0.75;
+}
+
+.quiet-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.quiet-when {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* ===== Tiles ===== */
