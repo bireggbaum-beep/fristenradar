@@ -22,6 +22,7 @@ export interface FristItem {
   priority: 'hoch' | 'mittel' | 'niedrig';
   status: FristStatus;
   note: string;
+  action: string;
   warnDays: number[];
   rawDescription: string;
 }

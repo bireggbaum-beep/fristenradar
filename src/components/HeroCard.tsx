@@ -15,13 +15,13 @@ interface Props {
 }
 
 function getHeroMessage(item: FristItem, today: Date): string {
+  if (item.action) return item.action;
   const level = urgencyLevel(item, today);
-  const t = item.title;
-  if (level === 'ÜBERFÄLLIG')     return `${t} muss sofort geklärt werden.`;
-  if (level === 'KRITISCH')       return `${t} braucht jetzt deine Aufmerksamkeit.`;
-  if (level === 'HEUTE ANFANGEN') return `Heute solltest du ${t} anstoßen.`;
-  if (level === 'BALD')           return `${t} rückt näher — plan es ein.`;
-  return `Als Nächstes wichtig: ${t}.`;
+  if (level === 'ÜBERFÄLLIG')     return 'Diese Frist braucht sofort deine Aufmerksamkeit.';
+  if (level === 'KRITISCH')       return 'Darum solltest du dich jetzt kümmern.';
+  if (level === 'HEUTE ANFANGEN') return 'Heute solltest du damit anfangen.';
+  if (level === 'BALD')           return 'Das rückt näher — plan es ein.';
+  return 'Das ist als Nächstes wichtig.';
 }
 
 function formatCountdown(days: number): string {
