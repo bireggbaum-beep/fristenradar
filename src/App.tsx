@@ -24,6 +24,13 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [briefingError, setBriefingError] = useState<string | null>(null);
+
+  const CALM_MESSAGES = [
+    'Alles im Griff. Kein Handlungsbedarf gerade.',
+    'Luft holen — im Moment ist nichts dringend.',
+    'Ruhige Phase. Genieß den Moment.',
+  ];
+  const [calmIndex] = useState(() => Math.floor(Math.random() * 3));
   const { voice, setVoice, cycleInterval, setCycleInterval, briefingTypes, saveType, deleteType } = useSettings();
 
   const { items: rawItems, loading, error, loadFromBackend } = useCalendar();
@@ -219,10 +226,9 @@ export function App() {
           </section>
         )}
 
-        {!loading && !error && !heroItem && (
+        {!loading && !error && heroItems.length === 0 && (
           <section className="empty-state">
-            <div className="empty-state-icon">📋</div>
-            <div className="empty-state-text">Gerade ist nichts dringend.</div>
+            <div className="empty-state-text">{CALM_MESSAGES[calmIndex]}</div>
           </section>
         )}
       </main>
