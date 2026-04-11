@@ -9,6 +9,7 @@ import { DashboardTile } from './components/DashboardTile';
 import { DetailOverlay } from './components/DetailOverlay';
 import { SettingsOverlay } from './components/SettingsOverlay';
 import { playBriefingAudio } from './lib/tts';
+import { triggerReparse } from './lib/calendarApi';
 import { useSettings } from './hooks/useSettings';
 
 
@@ -83,6 +84,7 @@ export function App() {
   }, [loadFromBackend]);
 
   const handleRefresh = useCallback(() => {
+    triggerReparse();
     loadFromBackend();
   }, [loadFromBackend]);
 

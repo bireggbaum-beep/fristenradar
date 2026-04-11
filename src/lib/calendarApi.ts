@@ -58,6 +58,11 @@ export async function fetchEventsFromCalendar(
   const data = await res.json();
   return (data.items ?? []) as GoogleCalendarEvent[];
 }
+/** Trigger background re-parse of all event descriptions via Qwen. Fire-and-forget. */
+export function triggerReparse(): void {
+  fetch('/api/events/reparse', { method: 'POST' }).catch(() => {});
+}
+
 /** Fetch events from our own backend (eliteVault server). */
 export async function fetchEventsFromBackend(
   days: number = 90
