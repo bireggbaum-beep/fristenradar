@@ -113,7 +113,7 @@ export function App() {
   );
 
   const heroItem = heroItems[0];
-  const soonItems = soon.filter(i => i.id !== heroItem?.id).slice(0, 2);
+  const soonItems = soon.filter(i => !heroItemIds.has(i.id)).slice(0, 2);
 
   async function handlePlayBriefing(key: string, force = false) {
     if (loadingKey !== null) return;
