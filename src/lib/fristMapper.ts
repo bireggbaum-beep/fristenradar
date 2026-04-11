@@ -17,15 +17,23 @@ function eventDate(event: GoogleCalendarEvent): Date {
 
 export function mapEventToFristItem(event: GoogleCalendarEvent): FristItem {
   const tags = parseDescriptionTags(event.description ?? '');
+  const p = event.parsed;
   const type: FristType = tags.typ ?? DEFAULT_TYPE;
 
   const dueDate = tags.faellig
     ? parseDate(tags.faellig)
     : eventDate(event);
 
-  const startBy = tags.start
-    ? parseDate(tags.start)
-    : calcStartBy(dueDate, type);
+  let startBy: Date;
+  if (tags.start) {
+    startBy = parseDate(tags.start);
+  } else if (p && p.vorlauf > 0) {
+    const d = new Date(dueDate);
+    d.setDate(d.getDate() - p.vorlauf);
+    startBy = d;
+  } else {
+    startBy = calcStartBy(dueDate, type);
+  }
 
   const warnDays = tags.warn ?? WARN_TEMPLATES[type];
 
@@ -37,8 +45,8 @@ export function mapEventToFristItem(event: GoogleCalendarEvent): FristItem {
     startBy,
     priority: tags.prio ?? 'mittel',
     status: 'neu',
-    note: tags.notiz ?? '',
-    action: tags.aktion ?? '',
+    note: p?.notiz || tags.notiz || '',
+    action: p?.aktion || tags.aktion || '',
     warnDays,
     rawDescription: event.description ?? '',
   };

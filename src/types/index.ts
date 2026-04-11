@@ -27,6 +27,12 @@ export interface FristItem {
   rawDescription: string;
 }
 
+export interface ParsedEventData {
+  vorlauf: number;   // days of lead time
+  aktion: string;    // what to do
+  notiz: string;     // extra info
+}
+
 export interface GoogleCalendarEvent {
   id: string;
   summary: string;
@@ -40,6 +46,7 @@ export interface GoogleCalendarEvent {
     dateTime?: string;
   };
   calendarId?: string;
+  parsed?: ParsedEventData;
 }
 
 export interface BriefingType {
