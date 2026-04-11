@@ -68,7 +68,7 @@ export function useCalendar() {
   const loadFromBackend = useCallback(async () => {
     setState(prev => ({ ...prev, loading: true, error: null }));
     try {
-      const events = await fetchEventsFromBackend();
+      const events = await fetchEventsFromBackend(365);
       const items = mapEventsToFristItems(events);
       items.sort((a, b) => urgencyScore(b) - urgencyScore(a));
       setState({ items, loading: false, error: null, lastSync: new Date() });
