@@ -7,6 +7,7 @@ interface Props {
   onMarkInProgress: () => void;
   onMarkDone: () => void;
   onPlayBriefing?: (key: string) => void;
+  onRegenerateBriefing?: (key: string) => void;
   briefingTypes?: BriefingType[];
   loadingKey?: string | null;
 }
@@ -47,6 +48,7 @@ export function HeroCard({
   onMarkInProgress,
   onMarkDone,
   onPlayBriefing,
+  onRegenerateBriefing,
   briefingTypes = [],
   loadingKey = null,
 }: Props) {
@@ -64,16 +66,26 @@ export function HeroCard({
 
         <div className="hero-audio-actions">
           {briefingTypes.map(type => (
-            <button
-              key={type.key}
-              type="button"
-              className={`hero-audio-btn${loadingKey === type.key ? ' hero-audio-btn--loading' : ''}`}
-              onClick={() => onPlayBriefing?.(type.key)}
-              disabled={loadingKey !== null}
-            >
-              <PlayIcon />
-              <span>{loadingKey === type.key ? '…' : type.name}</span>
-            </button>
+            <div key={type.key} className="hero-audio-group">
+              <button
+                type="button"
+                className={`hero-audio-btn${loadingKey === type.key ? ' hero-audio-btn--loading' : ''}`}
+                onClick={() => onPlayBriefing?.(type.key)}
+                disabled={loadingKey !== null}
+              >
+                <PlayIcon />
+                <span>{loadingKey === type.key ? '…' : type.name}</span>
+              </button>
+              <button
+                type="button"
+                className="hero-audio-regen"
+                onClick={() => onRegenerateBriefing?.(type.key)}
+                disabled={loadingKey !== null}
+                title="Neu generieren"
+              >
+                ↺
+              </button>
+            </div>
           ))}
         </div>
       </div>

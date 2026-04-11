@@ -79,12 +79,12 @@ export function App() {
   const soonItems = soon.filter(i => i.id !== heroItem?.id).slice(0, 2);
   const radarItems = radar.filter(i => i.id !== heroItem?.id).slice(0, 2);
 
-  async function handlePlayBriefing(key: string) {
+  async function handlePlayBriefing(key: string, force = false) {
     if (loadingKey !== null) return;
     setLoadingKey(key);
     setBriefingError(null);
     try {
-      await playBriefingAudio(key, voice);
+      await playBriefingAudio(key, voice, force);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('Briefing-Fehler:', err);
@@ -92,6 +92,10 @@ export function App() {
     } finally {
       setLoadingKey(null);
     }
+  }
+
+  function handleRegenerateBriefing(key: string) {
+    handlePlayBriefing(key, true);
   }
 
   return (
@@ -121,6 +125,7 @@ export function App() {
                 handleStatusChange(heroItem.id, 'erledigt')
               }
               onPlayBriefing={handlePlayBriefing}
+              onRegenerateBriefing={handleRegenerateBriefing}
               briefingTypes={briefingTypes}
               loadingKey={loadingKey}
             />
@@ -209,6 +214,12 @@ export function App() {
           onStatusChange={handleStatusChange}
           today={today}
         />
+      )}
+
+      {loadingKey && (
+        <div className="briefing-toast">
+          Briefing wird generiert…
+        </div>
       )}
 
       {showSettings && (
