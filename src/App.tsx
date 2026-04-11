@@ -24,6 +24,7 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [briefingError, setBriefingError] = useState<string | null>(null);
+  const [reparsing, setReparsing] = useState(false);
 
   const CALM_MESSAGES = [
     'Alles im Griff. Kein Handlungsbedarf gerade.',
@@ -96,6 +97,8 @@ export function App() {
 
   const handleRefresh = useCallback(() => {
     triggerReparse();
+    setReparsing(true);
+    setTimeout(() => setReparsing(false), 60000);
     loadFromBackend();
   }, [loadFromBackend]);
 
@@ -240,6 +243,12 @@ export function App() {
           onStatusChange={handleStatusChange}
           today={today}
         />
+      )}
+
+      {reparsing && (
+        <div className="briefing-toast briefing-toast--subtle">
+          KI liest Beschreibungen…
+        </div>
       )}
 
       {loadingKey && (

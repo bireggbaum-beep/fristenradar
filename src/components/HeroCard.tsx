@@ -15,7 +15,9 @@ interface Props {
 }
 
 function getHeroMessage(item: FristItem, today: Date): string {
-  if (item.action) return item.action;
+  const actionDiffersFromTitle =
+    item.action && item.action.trim().toLowerCase() !== item.title.trim().toLowerCase();
+  if (actionDiffersFromTitle) return item.action;
   const level = urgencyLevel(item, today);
   if (level === 'ÜBERFÄLLIG')     return 'Diese Frist braucht sofort deine Aufmerksamkeit.';
   if (level === 'KRITISCH')       return 'Darum solltest du dich jetzt kümmern.';
