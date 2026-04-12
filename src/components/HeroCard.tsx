@@ -42,6 +42,13 @@ function PlayIcon() {
   );
 }
 
+const URGENCY_KICKER: Record<string, string> = {
+  'ÜBERFÄLLIG':     'Sofort handeln',
+  'KRITISCH':       'Dringend',
+  'HEUTE ANFANGEN': 'Jetzt anfangen',
+  'BALD':           'Bald fällig',
+};
+
 export function HeroCard({
   items,
   today = new Date(),
@@ -78,13 +85,16 @@ export function HeroCard({
   if (!item) return null;
 
   const daysLeft = Math.ceil((item.dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  const message = getHeroMessage(item, today);
+  const level = urgencyLevel(item, today);
+  const hasCustomAction = item.action && item.action.trim().toLowerCase() !== item.title.trim().toLowerCase();
+  const message = hasCustomAction ? item.action : null;
+  const kicker = hasCustomAction ? 'Heute wichtig' : (URGENCY_KICKER[level] ?? 'Heute wichtig');
   const countdown = formatCountdown(daysLeft);
 
   return (
     <section className="hero-card">
       <div className="hero-top">
-        <div className="hero-kicker">Heute wichtig</div>
+        <div className="hero-kicker">{kicker}</div>
         <div className="hero-audio-actions">
           {briefingTypes.map(type => (
             <div key={type.key} className="hero-audio-group">
@@ -110,12 +120,19 @@ export function HeroCard({
       </div>
 
       <div className={`hero-content${visible ? '' : ' hero-content--hidden'}`}>
-        <h1 className="hero-message">{message}</h1>
+        <h1 className="hero-message">{message ?? item.title}</h1>
 
-        <div className="hero-focus">
-          <div className="hero-focus-title">{item.title}</div>
-          {item.note && <p className="hero-focus-note">{item.note}</p>}
-        </div>
+        {message && (
+          <div className="hero-focus">
+            <div className="hero-focus-title">{item.title}</div>
+            {item.note && <p className="hero-focus-note">{item.note}</p>}
+          </div>
+        )}
+        {!message && item.note && (
+          <div className="hero-focus">
+            <p className="hero-focus-note">{item.note}</p>
+          </div>
+        )}
       </div>
 
       <div className="hero-footer">
