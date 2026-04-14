@@ -155,6 +155,9 @@ export function HeroCard({
       </div>
 
       <div className={`hero-content${visible ? '' : ' hero-content--hidden'}`}>
+        {item.status === 'in bearbeitung' && (
+          <span className="hero-status-badge">In Bearbeitung</span>
+        )}
         <h1 className="hero-message">{message ?? item.title}</h1>
 
         {message && (

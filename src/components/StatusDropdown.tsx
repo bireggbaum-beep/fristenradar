@@ -1,14 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { FristStatus } from '../types';
 
-const ALL_STATUSES: FristStatus[] = [
-  'neu',
-  'geplant',
-  'in bearbeitung',
-  'erledigt',
-  'verschoben',
-  'überfällig',
-];
+const ALL_STATUSES: FristStatus[] = ['neu', 'in bearbeitung', 'erledigt'];
 
 interface Props {
   status: FristStatus;

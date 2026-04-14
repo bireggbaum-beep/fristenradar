@@ -58,7 +58,12 @@ export async function fetchEventsFromCalendar(
   const data = await res.json();
   return (data.items ?? []) as GoogleCalendarEvent[];
 }
-/** Trigger background re-parse of all event descriptions via Qwen. Fire-and-forget. */
+/** Trigger a Google Calendar sync (pull fresh events into SQLite). Fire-and-forget. */
+export function triggerSync(): void {
+  fetch('/api/events/sync', { method: 'POST' }).catch(() => {});
+}
+
+/** Trigger re-parse of all event descriptions via LLM. Only call when explicitly requested. */
 export function triggerReparse(): void {
   fetch('/api/events/reparse', { method: 'POST' }).catch(() => {});
 }

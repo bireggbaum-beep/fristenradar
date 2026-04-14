@@ -44,6 +44,9 @@ export function DashboardTile({
       </div>
 
       <div className="tile-right">
+        {item.status === 'in bearbeitung' && (
+          <span className="tile-status-badge">⏳</span>
+        )}
         <span className={`tile-countdown ${countdownClass}`}>{countdown}</span>
       </div>
     </button>

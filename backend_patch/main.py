@@ -154,7 +154,10 @@ def _fetch_raw_events(days_back: int = 90, days_forward: int = 365) -> list[dict
 
 def sync_to_db(events: list[dict]) -> None:
     now_iso = datetime.now(timezone.utc).isoformat()
+    incoming_ids = {ev["id"] for ev in events}
+
     with get_db() as conn:
+        # Upsert all current events
         for ev in events:
             conn.execute("""
                 INSERT INTO events (id, title, description, start_date, end_date,
@@ -174,6 +177,21 @@ def sync_to_db(events: list[dict]) -> None:
                     "INSERT OR IGNORE INTO event_tags (event_id, tag) VALUES (?, ?)",
                     (ev["id"], tag)
                 )
+
+        # Mark events that disappeared from Google Calendar as deleted
+        if incoming_ids:
+            placeholders = ",".join("?" * len(incoming_ids))
+            result = conn.execute(
+                f"UPDATE events SET deleted_at = ? WHERE id NOT IN ({placeholders}) AND deleted_at IS NULL",
+                [now_iso, *incoming_ids],
+            )
+        else:
+            result = conn.execute(
+                "UPDATE events SET deleted_at = ? WHERE deleted_at IS NULL", (now_iso,)
+            )
+        if result.rowcount:
+            log.info("sync_to_db: marked %d deleted events", result.rowcount)
+
     log.info("Synced %d events to DB", len(events))
 
 

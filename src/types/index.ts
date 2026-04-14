@@ -1,10 +1,7 @@
 export type FristStatus =
   | 'neu'
-  | 'geplant'
   | 'in bearbeitung'
-  | 'erledigt'
-  | 'verschoben'
-  | 'überfällig';
+  | 'erledigt';
 
 export type FristType =
   | 'Behörde'

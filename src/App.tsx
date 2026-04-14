@@ -9,7 +9,7 @@ import { DashboardTile } from './components/DashboardTile';
 import { DetailOverlay } from './components/DetailOverlay';
 import { SettingsOverlay } from './components/SettingsOverlay';
 import { playBriefingAudio } from './lib/tts';
-import { triggerReparse } from './lib/calendarApi';
+import { triggerSync } from './lib/calendarApi';
 import { useSettings } from './hooks/useSettings';
 
 
@@ -24,7 +24,6 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [briefingError, setBriefingError] = useState<string | null>(null);
-  const [reparsing, setReparsing] = useState(false);
   const briefingAbortRef = useRef<AbortController | null>(null);
 
   const CALM_MESSAGES = [
@@ -97,9 +96,7 @@ export function App() {
   }, [loadFromBackend]);
 
   const handleRefresh = useCallback(() => {
-    triggerReparse();
-    setReparsing(true);
-    setTimeout(() => setReparsing(false), 60000);
+    triggerSync();
     loadFromBackend();
   }, [loadFromBackend]);
 
@@ -269,11 +266,6 @@ export function App() {
         />
       )}
 
-      {reparsing && (
-        <div className="briefing-toast briefing-toast--subtle">
-          KI liest Beschreibungen…
-        </div>
-      )}
 
       {loadingKey && (
         <div className="briefing-toast briefing-toast--cancellable">
