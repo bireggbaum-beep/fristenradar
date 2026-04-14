@@ -306,6 +306,25 @@ button {
   font-size: 12px;
 }
 
+.briefing-toast--cancellable {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.briefing-toast-cancel {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.briefing-toast-cancel:hover { opacity: 1; }
+
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }

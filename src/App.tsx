@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { FristItem, FristStatus } from './types';
 import { urgencyLevel, urgencyScore } from './lib/urgency';
 import { useCalendar } from './hooks/useCalendar';
@@ -25,6 +25,7 @@ export function App() {
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [briefingError, setBriefingError] = useState<string | null>(null);
   const [reparsing, setReparsing] = useState(false);
+  const briefingAbortRef = useRef<AbortController | null>(null);
 
   const CALM_MESSAGES = [
     'Alles im Griff. Kein Handlungsbedarf gerade.',
@@ -136,17 +137,26 @@ export function App() {
 
   async function handlePlayBriefing(key: string, force = false) {
     if (loadingKey !== null) return;
+    const controller = new AbortController();
+    briefingAbortRef.current = controller;
     setLoadingKey(key);
     setBriefingError(null);
     try {
-      await playBriefingAudio(key, voice, force);
+      await playBriefingAudio(key, voice, force, controller.signal);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('Briefing-Fehler:', err);
-      setBriefingError(msg);
+      if (msg !== 'Abgebrochen') {
+        console.error('Briefing-Fehler:', err);
+        setBriefingError(msg);
+      }
     } finally {
+      briefingAbortRef.current = null;
       setLoadingKey(null);
     }
+  }
+
+  function handleCancelBriefing() {
+    briefingAbortRef.current?.abort();
   }
 
   function handleRegenerateBriefing(key: string) {
@@ -271,8 +281,9 @@ export function App() {
       )}
 
       {loadingKey && (
-        <div className="briefing-toast">
-          Briefing wird generiert…
+        <div className="briefing-toast briefing-toast--cancellable">
+          <span>Briefing wird generiert…</span>
+          <button className="briefing-toast-cancel" onClick={handleCancelBriefing} title="Abbrechen">✕</button>
         </div>
       )}
 

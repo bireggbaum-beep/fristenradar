@@ -139,20 +139,28 @@ export async function fetchBriefingText(): Promise<string> {
   return data.text as string;
 }
 
-export async function playBriefingAudio(key: string, voice: string, force = false): Promise<void> {
+export async function playBriefingAudio(
+  key: string,
+  voice: string,
+  force = false,
+  cancelSignal?: AbortSignal,
+): Promise<void> {
   const bust = force ? `&_t=${Date.now()}` : '';
   const url = `/api/briefing/audio?key=${encodeURIComponent(key)}&voice=${encodeURIComponent(voice)}${force ? '&force=true' : ''}${bust}`;
 
-  const controller = new AbortController();
-  const fetchTimeout = setTimeout(() => controller.abort(), 90_000);
+  // Combine external cancel signal with internal 90 s timeout
+  const timeoutController = new AbortController();
+  const fetchTimeout = setTimeout(() => timeoutController.abort(), 90_000);
+  cancelSignal?.addEventListener('abort', () => timeoutController.abort(), { once: true });
 
   let res: Response;
   try {
-    res = await fetch(url, { signal: controller.signal });
+    res = await fetch(url, { signal: timeoutController.signal });
   } catch (err) {
     clearTimeout(fetchTimeout);
     if (err instanceof DOMException && err.name === 'AbortError') {
-      throw new Error('Briefing-Anfrage abgebrochen (Timeout nach 90 s)');
+      const reason = cancelSignal?.aborted ? 'Abgebrochen' : 'Briefing-Anfrage abgebrochen (Timeout nach 90 s)';
+      throw new Error(reason);
     }
     throw err;
   }
@@ -171,6 +179,8 @@ export async function playBriefingAudio(key: string, voice: string, force = fals
       const audio = new Audio(audioUrl);
       audio.onended = () => resolve();
       audio.onerror = () => reject(new Error('Audio-Wiedergabe fehlgeschlagen'));
+      // Stop playback if cancelled while audio is playing
+      cancelSignal?.addEventListener('abort', () => { audio.pause(); resolve(); }, { once: true });
       audio.play().catch(reject);
     });
   } finally {
