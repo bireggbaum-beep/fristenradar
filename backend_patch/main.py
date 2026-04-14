@@ -90,12 +90,16 @@ def init_db() -> None:
                 audio_path   TEXT
             );
         """)
-        # Migration: add status column to existing DBs that were created without it
-        try:
-            conn.execute("ALTER TABLE events ADD COLUMN status TEXT NOT NULL DEFAULT 'neu'")
-            log.info("DB migration: added status column to events")
-        except Exception:
-            pass  # column already exists
+        # Migrations: add columns to existing DBs that were created without them
+        for migration in [
+            "ALTER TABLE events ADD COLUMN status TEXT NOT NULL DEFAULT 'neu'",
+            "ALTER TABLE events ADD COLUMN status_changed_at TEXT",
+        ]:
+            try:
+                conn.execute(migration)
+                log.info("DB migration: %s", migration)
+            except Exception:
+                pass  # column already exists
     log.info("DB initialised at %s", DB_PATH)
 
 
@@ -613,7 +617,11 @@ async def set_event_status(event_id: str, body: dict):
         ).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Event nicht gefunden")
-        conn.execute("UPDATE events SET status = ? WHERE id = ?", (status, event_id))
+        now_iso = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            "UPDATE events SET status = ?, status_changed_at = ? WHERE id = ?",
+            (status, now_iso, event_id),
+        )
     return {"id": event_id, "status": status}
 
 
