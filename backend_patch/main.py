@@ -61,7 +61,8 @@ def init_db() -> None:
                 all_day     INTEGER NOT NULL DEFAULT 1,
                 calendar_id TEXT NOT NULL DEFAULT 'primary',
                 imported_at TEXT NOT NULL,
-                deleted_at  TEXT
+                deleted_at  TEXT,
+                status      TEXT NOT NULL DEFAULT 'neu'
             );
             CREATE INDEX IF NOT EXISTS idx_events_start ON events(start_date);
 
@@ -89,6 +90,12 @@ def init_db() -> None:
                 audio_path   TEXT
             );
         """)
+        # Migration: add status column to existing DBs that were created without it
+        try:
+            conn.execute("ALTER TABLE events ADD COLUMN status TEXT NOT NULL DEFAULT 'neu'")
+            log.info("DB migration: added status column to events")
+        except Exception:
+            pass  # column already exists
     log.info("DB initialised at %s", DB_PATH)
 
 
@@ -559,12 +566,15 @@ async def generate_and_cache(key: str, btype: dict, voice: str, force: bool = Fa
 
 
 # ── API endpoints ──────────────────────────────────────────────────────────────
+VALID_STATUSES = {"neu", "in bearbeitung", "erledigt"}
+
+
 @app.get("/api/calendar/upcoming")
 def calendar_upcoming(days: int = 90):
     with get_db() as conn:
         rows = conn.execute("""
             SELECT e.id, e.title, e.description, e.start_date, e.end_date,
-                   e.all_day, e.calendar_id,
+                   e.all_day, e.calendar_id, e.status,
                    p.vorlauf, p.aktion, p.notiz
             FROM events e
             LEFT JOIN parsed_data p ON e.id = p.event_id
@@ -579,17 +589,32 @@ def calendar_upcoming(days: int = 90):
         parsed = None
         if r["vorlauf"] is not None:
             parsed = {"vorlauf": r["vorlauf"], "aktion": r["aktion"] or "", "notiz": r["notiz"] or ""}
-        all_day = bool(r["all_day"])
         result.append({
             "id":          r["id"],
             "title":       r["title"],
             "description": r["description"],
             "start":       r["start_date"],
             "end":         r["end_date"],
-            "allDay":      all_day,
+            "allDay":      bool(r["all_day"]),
+            "status":      r["status"] or "neu",
             "parsed":      parsed,
         })
     return {"items": result}
+
+
+@app.patch("/api/events/{event_id}/status")
+async def set_event_status(event_id: str, body: dict):
+    status = body.get("status", "neu")
+    if status not in VALID_STATUSES:
+        raise HTTPException(status_code=422, detail=f"Ungültiger Status '{status}'")
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT id FROM events WHERE id = ? AND deleted_at IS NULL", (event_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Event nicht gefunden")
+        conn.execute("UPDATE events SET status = ? WHERE id = ?", (status, event_id))
+    return {"id": event_id, "status": status}
 
 
 @app.post("/api/events/reparse")

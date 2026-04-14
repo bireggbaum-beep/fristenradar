@@ -35,7 +35,7 @@ export function App() {
   const { voice, setVoice, cycleInterval, setCycleInterval, briefingTypes, saveType, deleteType, llmConfig, saveLLMConfig, availableFilters } = useSettings();
 
   const { items: rawItems, loading, error, loadFromBackend } = useCalendar();
-  const { saveStatus, getStatus } = useStatusStore();
+  const { saveStatus, clearStatus, getStatus } = useStatusStore();
 
   const items: FristItem[] = useMemo(
     () => rawItems.map(item => ({ ...item, status: getStatus(item.id, item.status) })),
@@ -104,12 +104,21 @@ export function App() {
 
   const handleStatusChange = useCallback(
     (id: string, status: FristStatus) => {
+      // Optimistic update: local state first, backend in background
       saveStatus(id, status);
       if (selectedItem?.id === id) {
         setSelectedItem(prev => (prev ? { ...prev, status } : null));
       }
+      // Sync to backend; on success remove local override so DB is source of truth
+      fetch(`/api/events/${encodeURIComponent(id)}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+        .then(res => { if (res.ok) clearStatus(id); })
+        .catch(() => { /* local override stays as fallback */ });
     },
-    [saveStatus, selectedItem]
+    [saveStatus, clearStatus, selectedItem]
   );
 
   const heroItem = heroItems[0];

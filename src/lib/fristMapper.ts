@@ -44,7 +44,7 @@ export function mapEventToFristItem(event: GoogleCalendarEvent): FristItem {
     dueDate,
     startBy,
     priority: tags.prio ?? 'mittel',
-    status: 'neu',
+    status: event.status ?? 'neu',
     note: p?.notiz || tags.notiz || '',
     action: p?.aktion || tags.aktion || '',
     warnDays,

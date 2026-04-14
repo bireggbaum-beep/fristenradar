@@ -34,11 +34,24 @@ export function useStatusStore() {
     }));
   }, []);
 
+  // Remove local override once backend has confirmed the change
+  const clearStatus = useCallback((eventId: string) => {
+    setStatusMap(prev => {
+      if (!(eventId in prev)) return prev;
+      const next = { ...prev };
+      delete next[eventId];
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch { /* storage full or disabled */ }
+      return next;
+    });
+  }, []);
+
   const getStatus = useCallback(
     (eventId: string, fallback: FristStatus = 'neu'): FristStatus =>
       statusMap[eventId]?.status ?? fallback,
     [statusMap]
   );
 
-  return { saveStatus, getStatus };
+  return { saveStatus, clearStatus, getStatus };
 }

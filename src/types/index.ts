@@ -46,6 +46,7 @@ export interface GoogleCalendarEvent {
     dateTime?: string;
   };
   calendarId?: string;
+  status?: FristStatus;  // persisted in SQLite, not in Google Calendar
   parsed?: ParsedEventData;
 }
 

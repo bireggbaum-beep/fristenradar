@@ -80,6 +80,7 @@ export async function fetchEventsFromBackend(
     description: item.description ?? '',
     start: item.allDay ? { date: item.start } : { dateTime: item.start },
     end: item.allDay ? { date: item.end } : { dateTime: item.end },
+    status: item.status ?? 'neu',
     parsed: item.parsed ?? undefined,
   })) as GoogleCalendarEvent[];
 }
