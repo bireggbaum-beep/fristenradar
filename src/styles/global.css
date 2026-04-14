@@ -222,6 +222,13 @@ button {
   flex-direction: column;
   justify-content: flex-start;
   padding: 48px;
+}
+
+.hero-card--calm {
+  justify-content: center;
+  align-items: center;
+  min-height: 160px;
+  padding: 48px;
   border-radius: var(--radius-xl);
   background:
     radial-gradient(circle at top left, rgba(127, 179, 255, 0.07), transparent 30%),

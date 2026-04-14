@@ -178,19 +178,25 @@ export function App() {
           </section>
         )}
 
-        {!loading && !error && heroItems.length > 0 && (
+        {!loading && !error && (
           <section className="hero-shell">
-            <HeroCard
-              items={heroItems}
-              today={today}
-              onMarkInProgress={(id) => handleStatusChange(id, 'in bearbeitung')}
-              onMarkDone={(id) => handleStatusChange(id, 'erledigt')}
-              onPlayBriefing={handlePlayBriefing}
-              onRegenerateBriefing={handleRegenerateBriefing}
-              briefingTypes={briefingTypes}
-              loadingKey={loadingKey}
-              cycleInterval={cycleInterval}
-            />
+            {heroItems.length > 0 ? (
+              <HeroCard
+                items={heroItems}
+                today={today}
+                onMarkInProgress={(id) => handleStatusChange(id, 'in bearbeitung')}
+                onMarkDone={(id) => handleStatusChange(id, 'erledigt')}
+                onPlayBriefing={handlePlayBriefing}
+                onRegenerateBriefing={handleRegenerateBriefing}
+                briefingTypes={briefingTypes}
+                loadingKey={loadingKey}
+                cycleInterval={cycleInterval}
+              />
+            ) : (
+              <div className="hero-card hero-card--calm">
+                <p className="hero-message">{CALM_MESSAGES[calmIndex]}</p>
+              </div>
+            )}
             {briefingError && (
               <div style={{ color: '#e05', fontSize: '0.8rem', padding: '0.5rem 0.25rem' }}>
                 ⚠ {briefingError}
@@ -255,12 +261,6 @@ export function App() {
                 </div>
               </section>
             </div>
-          </section>
-        )}
-
-        {!loading && !error && heroItems.length === 0 && (
-          <section className="empty-state">
-            <div className="empty-state-text">{CALM_MESSAGES[calmIndex]}</div>
           </section>
         )}
       </main>
