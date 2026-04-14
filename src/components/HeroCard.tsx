@@ -12,6 +12,7 @@ interface Props {
   briefingTypes?: BriefingType[];
   loadingKey?: string | null;
   cycleInterval?: number;
+  calmMessage?: string;
 }
 
 function getHeroMessage(item: FristItem, today: Date): string {
@@ -59,6 +60,7 @@ export function HeroCard({
   briefingTypes = [],
   loadingKey = null,
   cycleInterval = 8,
+  calmMessage,
 }: Props) {
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(true);
@@ -82,7 +84,40 @@ export function HeroCard({
     return () => clearInterval(timer);
   }, [items.length, cycleInterval]);
 
-  if (!item) return null;
+  if (!item) {
+    return (
+      <section className="hero-card">
+        <div className="hero-top">
+          <div className="hero-kicker">Heute</div>
+          <div className="hero-audio-actions">
+            {briefingTypes.map(type => (
+              <div key={type.key} className="hero-audio-group">
+                <button
+                  type="button"
+                  className={`hero-audio-btn${loadingKey === type.key ? ' hero-audio-btn--loading' : ''}`}
+                  onClick={() => onPlayBriefing?.(type.key)}
+                  disabled={loadingKey !== null}
+                >
+                  <PlayIcon />
+                  <span>{loadingKey === type.key ? '…' : type.name}</span>
+                </button>
+                <button
+                  type="button"
+                  className="hero-audio-regen"
+                  onClick={() => onRegenerateBriefing?.(type.key)}
+                  disabled={loadingKey !== null}
+                  title="Neu generieren"
+                >↺</button>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="hero-content">
+          <h1 className="hero-message hero-message--calm">{calmMessage ?? 'Alles im Griff.'}</h1>
+        </div>
+      </section>
+    );
+  }
 
   const daysLeft = Math.ceil((item.dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   const level = urgencyLevel(item, today);
