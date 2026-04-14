@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { BriefingType } from '../types';
+import type { BriefingType, LLMConfig } from '../types';
 
 const VOICES = [
   { value: 'de-DE-KatjaNeural',   label: 'Katja — weiblich, neutral (DE)' },
@@ -33,6 +33,8 @@ interface Props {
   briefingTypes: BriefingType[];
   onSaveType: (type: BriefingType) => Promise<void>;
   onDeleteType: (key: string) => Promise<void>;
+  llmConfig: LLMConfig;
+  onSaveLLMConfig: (config: LLMConfig) => Promise<void>;
 }
 
 export function SettingsOverlay({
@@ -44,8 +46,14 @@ export function SettingsOverlay({
   briefingTypes,
   onSaveType,
   onDeleteType,
+  llmConfig,
+  onSaveLLMConfig,
 }: Props) {
   const [form, setForm] = useState<FormState | null>(null);
+  const [llmDraft, setLLMDraft] = useState<LLMConfig>(llmConfig);
+  const [llmSaving, setLLMSaving] = useState(false);
+  const [llmSaved, setLLMSaved] = useState(false);
+  const [llmError, setLLMError] = useState<string | null>(null);
 
   function startNew() {
     setForm({ type: { ...EMPTY_TYPE }, isNew: true, saving: false, error: null });
@@ -117,6 +125,21 @@ export function SettingsOverlay({
     }
   }
 
+  async function handleSaveLLM() {
+    setLLMSaving(true);
+    setLLMError(null);
+    setLLMSaved(false);
+    try {
+      await onSaveLLMConfig(llmDraft);
+      setLLMSaved(true);
+      setTimeout(() => setLLMSaved(false), 2000);
+    } catch (e) {
+      setLLMError(e instanceof Error ? e.message : 'Fehler');
+    } finally {
+      setLLMSaving(false);
+    }
+  }
+
   return (
     <div className="overlay" onClick={onClose}>
       <div className="overlay-card settings-card" onClick={e => e.stopPropagation()}>
@@ -139,6 +162,74 @@ export function SettingsOverlay({
             </select>
             <div className="settings-hint">
               Edge TTS via Backend — gilt für alle Briefing-Typen.
+            </div>
+          </div>
+
+          <div className="settings-section">
+            <div className="settings-section-title">KI-Modell</div>
+            <div className="llm-provider-toggle">
+              <label className="llm-provider-option">
+                <input
+                  type="radio"
+                  name="llm-provider"
+                  checked={llmDraft.provider === 'local'}
+                  onChange={() => setLLMDraft(d => ({ ...d, provider: 'local' }))}
+                />
+                Lokal (Ollama)
+              </label>
+              <label className="llm-provider-option">
+                <input
+                  type="radio"
+                  name="llm-provider"
+                  checked={llmDraft.provider === 'openrouter'}
+                  onChange={() => setLLMDraft(d => ({ ...d, provider: 'openrouter' }))}
+                />
+                OpenRouter
+              </label>
+            </div>
+
+            {llmDraft.provider === 'local' && (
+              <div className="llm-fields">
+                <label className="settings-label">Modell</label>
+                <input
+                  className="settings-input"
+                  value={llmDraft.localModel}
+                  onChange={e => setLLMDraft(d => ({ ...d, localModel: e.target.value }))}
+                  placeholder="qwen2.5:7b"
+                />
+                <div className="settings-hint">z.B. qwen2.5:7b, mistral, llama3.2</div>
+              </div>
+            )}
+
+            {llmDraft.provider === 'openrouter' && (
+              <div className="llm-fields">
+                <label className="settings-label">API-Schlüssel</label>
+                <input
+                  className="settings-input"
+                  type="password"
+                  value={llmDraft.openrouterKey}
+                  onChange={e => setLLMDraft(d => ({ ...d, openrouterKey: e.target.value }))}
+                  placeholder="sk-or-v1-..."
+                  autoComplete="off"
+                />
+                <label className="settings-label">Modell</label>
+                <input
+                  className="settings-input"
+                  value={llmDraft.openrouterModel}
+                  onChange={e => setLLMDraft(d => ({ ...d, openrouterModel: e.target.value }))}
+                  placeholder="google/gemini-flash-1.5-8b"
+                />
+                <div className="settings-hint">
+                  z.B. google/gemini-flash-1.5-8b · anthropic/claude-haiku-3-5 · openai/gpt-4o-mini
+                </div>
+              </div>
+            )}
+
+            {llmError && <div className="briefing-type-error">{llmError}</div>}
+            <div className="llm-save-row">
+              <button className="btn btn-primary" onClick={handleSaveLLM} disabled={llmSaving}>
+                {llmSaving ? '…' : llmSaved ? 'Gespeichert ✓' : 'Speichern'}
+              </button>
             </div>
           </div>
 

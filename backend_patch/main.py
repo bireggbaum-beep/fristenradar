@@ -1,6 +1,7 @@
 """
 Fristenradar – FastAPI Backend
-Hybrid briefing: code builds date-accurate skeleton, Qwen adds prose only.
+Hybrid briefing: code builds date-accurate skeleton, LLM adds prose only.
+LLM is configurable: local Ollama or OpenRouter cloud model.
 """
 import asyncio
 import hashlib
@@ -28,17 +29,37 @@ BASE_DIR            = Path("/opt/fristenradar")
 PARSE_CACHE_DIR     = BASE_DIR / "parsed"
 BRIEFING_DIR        = BASE_DIR / "briefings"
 BRIEFING_TYPES_FILE = BASE_DIR / "briefing_types.json"
+LLM_CONFIG_FILE     = BASE_DIR / "llm_config.json"
 UI_DIST             = Path("/opt/fristenradar-ui/dist")
 
 PARSE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 BRIEFING_DIR.mkdir(parents=True, exist_ok=True)
 
-# ── Config ─────────────────────────────────────────────────────────────────────
+# ── Config defaults ─────────────────────────────────────────────────────────────
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
-QWEN_MODEL = os.getenv("QWEN_MODEL", "qwen2.5:7b")
+DEFAULT_LLM_CONFIG = {
+    "provider": "local",
+    "localModel": "qwen2.5:7b",
+    "openrouterKey": "",
+    "openrouterModel": "google/gemini-flash-1.5-8b",
+}
 
 
-# ── Briefing types ─────────────────────────────────────────────────────────────
+# ── LLM config persistence ──────────────────────────────────────────────────────
+def load_llm_config() -> dict:
+    if LLM_CONFIG_FILE.exists():
+        try:
+            return json.loads(LLM_CONFIG_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return dict(DEFAULT_LLM_CONFIG)
+
+
+def save_llm_config(config: dict) -> None:
+    LLM_CONFIG_FILE.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+# ── Briefing types persistence ──────────────────────────────────────────────────
 def load_briefing_types() -> list[dict]:
     if BRIEFING_TYPES_FILE.exists():
         with open(BRIEFING_TYPES_FILE, encoding="utf-8") as f:
@@ -51,7 +72,7 @@ def save_briefing_types(types: list[dict]) -> None:
         json.dump(types, f, ensure_ascii=False, indent=2)
 
 
-# ── Parse cache ────────────────────────────────────────────────────────────────
+# ── Parse cache ─────────────────────────────────────────────────────────────────
 def _desc_hash(description: str) -> str:
     return hashlib.md5(description.encode()).hexdigest()[:8]
 
@@ -73,18 +94,52 @@ def save_cached_parse(event_id: str, description: str, data: dict) -> None:
     f.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
 
-# ── Qwen helpers ───────────────────────────────────────────────────────────────
-async def _call_qwen(prompt: str) -> str:
+# ── LLM dispatchers ─────────────────────────────────────────────────────────────
+async def _call_ollama(prompt: str, model: str) -> str:
     async with httpx.AsyncClient(timeout=120) as client:
         resp = await client.post(
             f"{OLLAMA_URL}/api/generate",
-            json={"model": QWEN_MODEL, "prompt": prompt, "stream": False},
+            json={"model": model, "prompt": prompt, "stream": False},
         )
         resp.raise_for_status()
         return resp.json().get("response", "").strip()
 
 
-async def parse_with_qwen(description: str) -> dict:
+async def _call_openrouter(prompt: str, api_key: str, model: str) -> str:
+    async with httpx.AsyncClient(timeout=60) as client:
+        resp = await client.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "HTTP-Referer": "http://fristenradar.local",
+                "X-Title": "Fristenradar",
+            },
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 400,
+            },
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"].strip()
+
+
+async def _call_llm(prompt: str) -> str:
+    """Dispatch to configured LLM provider."""
+    config = load_llm_config()
+    if config.get("provider") == "openrouter":
+        key = config.get("openrouterKey", "")
+        model = config.get("openrouterModel", "google/gemini-flash-1.5-8b")
+        if not key:
+            raise ValueError("OpenRouter API-Schlüssel fehlt")
+        return await _call_openrouter(prompt, key, model)
+    else:
+        model = config.get("localModel", "qwen2.5:7b")
+        return await _call_ollama(prompt, model)
+
+
+# ── Event description parser ────────────────────────────────────────────────────
+async def parse_with_llm(description: str) -> dict:
     prompt = (
         "Lies die folgende Kalendertermin-Beschreibung und extrahiere diese drei Felder als JSON:\n"
         '{"vorlauf": <Ganzzahl: Tage Vorlauf vor dem Termin, oder 0>, '
@@ -93,7 +148,7 @@ async def parse_with_qwen(description: str) -> dict:
         "Nur JSON zurückgeben, kein Text davor oder danach.\n\n"
         f"Beschreibung:\n{description}"
     )
-    raw = await _call_qwen(prompt)
+    raw = await _call_llm(prompt)
     try:
         start = raw.find("{")
         end = raw.rfind("}") + 1
@@ -102,7 +157,7 @@ async def parse_with_qwen(description: str) -> dict:
         return {"vorlauf": 0, "aktion": "", "notiz": ""}
 
 
-# ── Edge TTS ───────────────────────────────────────────────────────────────────
+# ── Edge TTS ────────────────────────────────────────────────────────────────────
 async def _text_to_speech(text: str, output_path: str, voice: str) -> str:
     import edge_tts  # type: ignore
     communicate = edge_tts.Communicate(text, voice)
@@ -110,7 +165,7 @@ async def _text_to_speech(text: str, output_path: str, voice: str) -> str:
     return output_path
 
 
-# ── Background parse loop ──────────────────────────────────────────────────────
+# ── Background parse loop ───────────────────────────────────────────────────────
 async def parse_all_events() -> None:
     from app.google_calendar import get_upcoming_events
     try:
@@ -125,7 +180,7 @@ async def parse_all_events() -> None:
         if get_cached_parse(ev["id"], desc) is not None:
             continue
         try:
-            parsed = await parse_with_qwen(desc)
+            parsed = await parse_with_llm(desc)
             save_cached_parse(ev["id"], desc, parsed)
             log.info(f"Parsed: {ev.get('title', ev['id'])}")
         except Exception as e:
@@ -139,7 +194,7 @@ async def parse_loop() -> None:
         await asyncio.sleep(4 * 3600)
 
 
-# ── Lifespan ───────────────────────────────────────────────────────────────────
+# ── Lifespan ─────────────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     task = asyncio.create_task(parse_loop())
@@ -147,7 +202,7 @@ async def lifespan(app: FastAPI):
     task.cancel()
 
 
-# ── App ────────────────────────────────────────────────────────────────────────
+# ── App ──────────────────────────────────────────────────────────────────────────
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
@@ -157,7 +212,7 @@ app.add_middleware(
 )
 
 
-# ── Urgency helpers (mirrors urgency.ts exactly) ───────────────────────────────
+# ── Urgency helpers (mirrors urgency.ts exactly) ────────────────────────────────
 def _calc_urgency(event_date: date, today: date, vorlauf: int = 0) -> str:
     days_left = (event_date - today).days
     if days_left <= 0:
@@ -176,7 +231,7 @@ def _calc_urgency(event_date: date, today: date, vorlauf: int = 0) -> str:
 
 
 def _rel(event_date: date, today: date) -> str:
-    """Relative time string — only this goes to Qwen, never absolute dates."""
+    """Relative time string — only this goes to the LLM, never absolute dates."""
     days_left = (event_date - today).days
     if days_left < 0:
         return "überfällig"
@@ -191,7 +246,7 @@ def _rel(event_date: date, today: date) -> str:
     return f"in {round(days_left / 30)} Monaten"
 
 
-# ── Briefing generation ────────────────────────────────────────────────────────
+# ── Briefing generation ──────────────────────────────────────────────────────────
 async def generate_and_cache(key: str, btype: dict, voice: str, force: bool = False) -> str:
     today = date.today()
     cache_file = BRIEFING_DIR / f"{today.isoformat()}-{key}.mp3"
@@ -229,16 +284,14 @@ async def generate_and_cache(key: str, btype: dict, voice: str, force: bool = Fa
         })
 
     # Select events — urgency-based, not date-range-based
-    # Always include: ÜBERFÄLLIG, KRITISCH, HEUTE ANFANGEN, BALD
-    # RADAR only for briefing types with days > 14
     include_radar = int(btype.get("days") or 0) > 14
     selected = [
         e for e in enriched
         if e["urgency"] in ("ÜBERFÄLLIG", "KRITISCH", "HEUTE ANFANGEN", "BALD")
         or (include_radar and e["urgency"] == "RADAR")
-    ][:15]  # hard cap — Qwen is slow
+    ][:15]
 
-    # Build structured skeleton with ONLY relative time refs (no absolute dates)
+    # Build skeleton with ONLY relative time refs — no absolute dates to LLM
     if not selected:
         skeleton = "Gerade sind keine dringenden Fristen vorhanden."
     else:
@@ -273,7 +326,7 @@ async def generate_and_cache(key: str, btype: dict, voice: str, force: bool = Fa
 
     log.info(f"Briefing skeleton für '{key}':\n{skeleton}")
 
-    # Qwen reformulates to natural prose — time refs must stay EXACTLY as given
+    # LLM: reformulate to natural prose — time refs must stay EXACTLY as given
     user_prompt = btype.get("prompt") or "Erstelle ein kurzes Briefing auf Deutsch."
     prompt = (
         "Forme diesen strukturierten Text in ein natürliches Briefing auf Deutsch um.\n"
@@ -284,16 +337,16 @@ async def generate_and_cache(key: str, btype: dict, voice: str, force: bool = Fa
         f"{user_prompt}"
     )
 
-    text = await _call_qwen(prompt)
+    text = await _call_llm(prompt)
     if not text:
-        text = skeleton  # fallback: speak the structured text directly
+        text = skeleton
 
     log.info(f"Briefing text für '{key}': {text[:120]}...")
     await _text_to_speech(text, str(cache_file), voice)
     return str(cache_file)
 
 
-# ── API endpoints ──────────────────────────────────────────────────────────────
+# ── API endpoints ────────────────────────────────────────────────────────────────
 @app.get("/api/calendar/upcoming")
 def calendar_upcoming(days: int = 90):
     from app.google_calendar import get_upcoming_events
@@ -321,8 +374,9 @@ async def reparse_events():
     return {"status": "started"}
 
 
-@app.get("/api/briefing/{key}")
-async def get_briefing(key: str, voice: str = "de-DE-KatjaNeural", force: bool = False):
+# Briefing audio — matches frontend: /api/briefing/audio?key=X&voice=Y&force=true
+@app.get("/api/briefing/audio")
+async def get_briefing_audio(key: str, voice: str = "de-DE-KatjaNeural", force: bool = False):
     btypes = load_briefing_types()
     btype = next((b for b in btypes if b["key"] == key), None)
     if btype is None:
@@ -332,12 +386,13 @@ async def get_briefing(key: str, voice: str = "de-DE-KatjaNeural", force: bool =
     return FileResponse(audio_path, media_type="audio/mpeg")
 
 
-@app.get("/api/briefing-types")
-def get_briefing_types_endpoint():
+# Briefing types — matches frontend: /api/briefing/types
+@app.get("/api/briefing/types")
+def get_briefing_types():
     return load_briefing_types()
 
 
-@app.post("/api/briefing-types")
+@app.post("/api/briefing/types")
 async def save_briefing_type(btype: dict):
     types = load_briefing_types()
     existing = next((i for i, b in enumerate(types) if b["key"] == btype["key"]), None)
@@ -349,7 +404,7 @@ async def save_briefing_type(btype: dict):
     return btype
 
 
-@app.delete("/api/briefing-types/{key}")
+@app.delete("/api/briefing/types/{key}")
 async def delete_briefing_type(key: str):
     types = load_briefing_types()
     types = [b for b in types if b["key"] != key]
@@ -357,6 +412,18 @@ async def delete_briefing_type(key: str):
     return {"status": "ok"}
 
 
-# ── Serve frontend (must be last) ──────────────────────────────────────────────
+# LLM config
+@app.get("/api/llm-config")
+def get_llm_config():
+    return load_llm_config()
+
+
+@app.post("/api/llm-config")
+async def post_llm_config(config: dict):
+    save_llm_config(config)
+    return {"status": "ok"}
+
+
+# ── Serve frontend (must be last) ────────────────────────────────────────────────
 if UI_DIST.exists():
     app.mount("/", StaticFiles(directory=str(UI_DIST), html=True), name="static")

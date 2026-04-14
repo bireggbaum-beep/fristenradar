@@ -57,3 +57,10 @@ export interface BriefingType {
   active: boolean;
 }
 
+export interface LLMConfig {
+  provider: 'local' | 'openrouter';
+  localModel: string;
+  openrouterKey: string;
+  openrouterModel: string;
+}
+

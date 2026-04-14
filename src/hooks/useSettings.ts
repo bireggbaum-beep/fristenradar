@@ -1,10 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { BriefingType } from '../types';
+import type { BriefingType, LLMConfig } from '../types';
 
 const VOICE_KEY = 'fristenradar_voice';
 const DEFAULT_VOICE = 'de-DE-KatjaNeural';
 const CYCLE_KEY = 'fristenradar_cycle';
 const DEFAULT_CYCLE = 8;
+
+const DEFAULT_LLM: LLMConfig = {
+  provider: 'local',
+  localModel: 'qwen2.5:7b',
+  openrouterKey: '',
+  openrouterModel: 'google/gemini-flash-1.5-8b',
+};
 
 export function useSettings() {
   const [voice, setVoiceState] = useState<string>(
@@ -14,6 +21,7 @@ export function useSettings() {
     () => Number(localStorage.getItem(CYCLE_KEY) ?? DEFAULT_CYCLE)
   );
   const [briefingTypes, setBriefingTypes] = useState<BriefingType[]>([]);
+  const [llmConfig, setLLMConfig] = useState<LLMConfig>(DEFAULT_LLM);
 
   function setVoice(v: string) {
     localStorage.setItem(VOICE_KEY, v);
@@ -48,7 +56,32 @@ export function useSettings() {
     await loadTypes();
   }, [loadTypes]);
 
-  useEffect(() => { loadTypes(); }, [loadTypes]);
+  const loadLLMConfig = useCallback(async () => {
+    try {
+      const res = await fetch('/api/llm-config');
+      if (res.ok) setLLMConfig(await res.json());
+    } catch { /* backend not available */ }
+  }, []);
 
-  return { voice, setVoice, cycleInterval, setCycleInterval, briefingTypes, saveType, deleteType };
+  const saveLLMConfig = useCallback(async (config: LLMConfig) => {
+    const res = await fetch('/api/llm-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    if (!res.ok) throw new Error('Speichern fehlgeschlagen');
+    setLLMConfig(config);
+  }, []);
+
+  useEffect(() => {
+    loadTypes();
+    loadLLMConfig();
+  }, [loadTypes, loadLLMConfig]);
+
+  return {
+    voice, setVoice,
+    cycleInterval, setCycleInterval,
+    briefingTypes, saveType, deleteType,
+    llmConfig, saveLLMConfig,
+  };
 }

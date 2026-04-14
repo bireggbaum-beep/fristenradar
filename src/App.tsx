@@ -32,7 +32,7 @@ export function App() {
     'Ruhige Phase. Genieß den Moment.',
   ];
   const [calmIndex] = useState(() => Math.floor(Math.random() * 3));
-  const { voice, setVoice, cycleInterval, setCycleInterval, briefingTypes, saveType, deleteType } = useSettings();
+  const { voice, setVoice, cycleInterval, setCycleInterval, briefingTypes, saveType, deleteType, llmConfig, saveLLMConfig } = useSettings();
 
   const { items: rawItems, loading, error, loadFromBackend } = useCalendar();
   const { saveStatus, getStatus } = useStatusStore();
@@ -267,6 +267,8 @@ export function App() {
           briefingTypes={briefingTypes}
           onSaveType={saveType}
           onDeleteType={deleteType}
+          llmConfig={llmConfig}
+          onSaveLLMConfig={saveLLMConfig}
         />
       )}
     </div>
