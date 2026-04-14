@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { BriefingType, LLMConfig } from '../types';
+import type { BriefingType, LLMConfig, AvailableFilters } from '../types';
 
 const VOICE_KEY = 'fristenradar_voice';
 const DEFAULT_VOICE = 'de-DE-KatjaNeural';
@@ -13,6 +13,8 @@ const DEFAULT_LLM: LLMConfig = {
   openrouterModel: 'google/gemini-flash-1.5-8b',
 };
 
+const EMPTY_FILTERS: AvailableFilters = { tags: [], calendars: [] };
+
 export function useSettings() {
   const [voice, setVoiceState] = useState<string>(
     () => localStorage.getItem(VOICE_KEY) ?? DEFAULT_VOICE
@@ -22,6 +24,7 @@ export function useSettings() {
   );
   const [briefingTypes, setBriefingTypes] = useState<BriefingType[]>([]);
   const [llmConfig, setLLMConfig] = useState<LLMConfig>(DEFAULT_LLM);
+  const [availableFilters, setAvailableFilters] = useState<AvailableFilters>(EMPTY_FILTERS);
 
   function setVoice(v: string) {
     localStorage.setItem(VOICE_KEY, v);
@@ -60,7 +63,7 @@ export function useSettings() {
     try {
       const res = await fetch('/api/llm-config');
       if (res.ok) setLLMConfig(await res.json());
-    } catch { /* backend not available */ }
+    } catch { }
   }, []);
 
   const saveLLMConfig = useCallback(async (config: LLMConfig) => {
@@ -73,15 +76,24 @@ export function useSettings() {
     setLLMConfig(config);
   }, []);
 
+  const loadAvailableFilters = useCallback(async () => {
+    try {
+      const res = await fetch('/api/filters');
+      if (res.ok) setAvailableFilters(await res.json());
+    } catch { }
+  }, []);
+
   useEffect(() => {
     loadTypes();
     loadLLMConfig();
-  }, [loadTypes, loadLLMConfig]);
+    loadAvailableFilters();
+  }, [loadTypes, loadLLMConfig, loadAvailableFilters]);
 
   return {
     voice, setVoice,
     cycleInterval, setCycleInterval,
     briefingTypes, saveType, deleteType,
     llmConfig, saveLLMConfig,
+    availableFilters,
   };
 }

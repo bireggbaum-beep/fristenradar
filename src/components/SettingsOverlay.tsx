@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import type { BriefingType, LLMConfig } from '../types';
+import type { BriefingType, LLMConfig, AvailableFilters } from '../types';
+import { DATE_RANGE_OPTIONS } from '../types';
 
 const VOICES = [
   { value: 'de-DE-KatjaNeural',   label: 'Katja — weiblich, neutral (DE)' },
@@ -12,7 +13,8 @@ const VOICES = [
 const EMPTY_TYPE: BriefingType = {
   key: '',
   name: '',
-  days: 30,
+  date_range: 'urgent',
+  filter_by: '',
   prompt: 'Erstelle ein Morgenbriefing auf Deutsch. Maximal 3-4 Sätze. Sprich direkt wie eine Assistentin. Nur Fließtext.',
   active: true,
 };
@@ -35,6 +37,19 @@ interface Props {
   onDeleteType: (key: string) => Promise<void>;
   llmConfig: LLMConfig;
   onSaveLLMConfig: (config: LLMConfig) => Promise<void>;
+  availableFilters: AvailableFilters;
+}
+
+function dateRangeLabel(value: string): string {
+  return DATE_RANGE_OPTIONS.find(o => o.value === value)?.label ?? value;
+}
+
+function filterLabel(filter_by: string | undefined): string {
+  if (!filter_by) return '';
+  const [prefix, value] = filter_by.split(':');
+  if (prefix === 'tag') return `#${value}`;
+  if (prefix === 'calendar') return `📅 ${value}`;
+  return filter_by;
 }
 
 export function SettingsOverlay({
@@ -48,6 +63,7 @@ export function SettingsOverlay({
   onDeleteType,
   llmConfig,
   onSaveLLMConfig,
+  availableFilters,
 }: Props) {
   const [form, setForm] = useState<FormState | null>(null);
   const [llmDraft, setLLMDraft] = useState<LLMConfig>(llmConfig);
@@ -63,9 +79,7 @@ export function SettingsOverlay({
     setForm({ type: { ...type }, isNew: false, saving: false, error: null });
   }
 
-  function cancelForm() {
-    setForm(null);
-  }
+  function cancelForm() { setForm(null); }
 
   function updateType(patch: Partial<BriefingType>) {
     setForm(prev => prev ? { ...prev, type: { ...prev.type, ...patch } } : null);
@@ -90,10 +104,6 @@ export function SettingsOverlay({
       setForm(prev => prev ? { ...prev, error: 'Name fehlt' } : null);
       return;
     }
-    if (!type.key.trim()) {
-      setForm(prev => prev ? { ...prev, error: 'Key fehlt' } : null);
-      return;
-    }
     if (!type.prompt.trim()) {
       setForm(prev => prev ? { ...prev, error: 'Prompt fehlt' } : null);
       return;
@@ -110,19 +120,11 @@ export function SettingsOverlay({
   }
 
   async function handleDelete(key: string) {
-    try {
-      await onDeleteType(key);
-    } catch {
-      // ignore
-    }
+    try { await onDeleteType(key); } catch { }
   }
 
   async function handleToggleActive(type: BriefingType) {
-    try {
-      await onSaveType({ ...type, active: !type.active });
-    } catch {
-      // ignore
-    }
+    try { await onSaveType({ ...type, active: !type.active }); } catch { }
   }
 
   async function handleSaveLLM() {
@@ -140,6 +142,13 @@ export function SettingsOverlay({
     }
   }
 
+  // Build filter options from available filters
+  const filterOptions: { value: string; label: string }[] = [
+    { value: '', label: 'Alle Events' },
+    ...availableFilters.tags.map(t => ({ value: `tag:${t}`, label: `#${t}` })),
+    ...availableFilters.calendars.map(c => ({ value: `calendar:${c.id}`, label: `📅 ${c.name}` })),
+  ];
+
   return (
     <div className="overlay" onClick={onClose}>
       <div className="overlay-card settings-card" onClick={e => e.stopPropagation()}>
@@ -149,6 +158,8 @@ export function SettingsOverlay({
         </div>
 
         <div className="overlay-body">
+
+          {/* ── Stimme ─────────────────────────────────────────── */}
           <div className="settings-section">
             <div className="settings-section-title">Stimme</div>
             <select
@@ -160,27 +171,22 @@ export function SettingsOverlay({
                 <option key={v.value} value={v.value}>{v.label}</option>
               ))}
             </select>
-            <div className="settings-hint">
-              Edge TTS via Backend — gilt für alle Briefing-Typen.
-            </div>
+            <div className="settings-hint">Edge TTS via Backend — gilt für alle Briefing-Typen.</div>
           </div>
 
+          {/* ── KI-Modell ──────────────────────────────────────── */}
           <div className="settings-section">
             <div className="settings-section-title">KI-Modell</div>
             <div className="llm-provider-toggle">
               <label className="llm-provider-option">
-                <input
-                  type="radio"
-                  name="llm-provider"
+                <input type="radio" name="llm-provider"
                   checked={llmDraft.provider === 'local'}
                   onChange={() => setLLMDraft(d => ({ ...d, provider: 'local' }))}
                 />
                 Lokal (Ollama)
               </label>
               <label className="llm-provider-option">
-                <input
-                  type="radio"
-                  name="llm-provider"
+                <input type="radio" name="llm-provider"
                   checked={llmDraft.provider === 'openrouter'}
                   onChange={() => setLLMDraft(d => ({ ...d, provider: 'openrouter' }))}
                 />
@@ -191,9 +197,7 @@ export function SettingsOverlay({
             {llmDraft.provider === 'local' && (
               <div className="llm-fields">
                 <label className="settings-label">Modell</label>
-                <input
-                  className="settings-input"
-                  value={llmDraft.localModel}
+                <input className="settings-input" value={llmDraft.localModel}
                   onChange={e => setLLMDraft(d => ({ ...d, localModel: e.target.value }))}
                   placeholder="qwen2.5:7b"
                 />
@@ -204,23 +208,18 @@ export function SettingsOverlay({
             {llmDraft.provider === 'openrouter' && (
               <div className="llm-fields">
                 <label className="settings-label">API-Schlüssel</label>
-                <input
-                  className="settings-input"
-                  type="password"
+                <input className="settings-input" type="password"
                   value={llmDraft.openrouterKey}
                   onChange={e => setLLMDraft(d => ({ ...d, openrouterKey: e.target.value }))}
-                  placeholder="sk-or-v1-..."
-                  autoComplete="off"
+                  placeholder="sk-or-v1-..." autoComplete="off"
                 />
                 <label className="settings-label">Modell</label>
-                <input
-                  className="settings-input"
-                  value={llmDraft.openrouterModel}
+                <input className="settings-input" value={llmDraft.openrouterModel}
                   onChange={e => setLLMDraft(d => ({ ...d, openrouterModel: e.target.value }))}
                   placeholder="google/gemini-flash-1.5-8b"
                 />
                 <div className="settings-hint">
-                  z.B. google/gemini-flash-1.5-8b · anthropic/claude-haiku-3-5 · openai/gpt-4o-mini
+                  z.B. google/gemini-flash-1.5-8b · anthropic/claude-haiku-3-5
                 </div>
               </div>
             )}
@@ -233,6 +232,7 @@ export function SettingsOverlay({
             </div>
           </div>
 
+          {/* ── Anzeige ────────────────────────────────────────── */}
           <div className="settings-section">
             <div className="settings-section-title">Anzeige</div>
             <div className="briefing-type-days-row">
@@ -241,14 +241,14 @@ export function SettingsOverlay({
                 type="number"
                 className="settings-input settings-input--narrow"
                 value={cycleInterval}
-                min={3}
-                max={60}
+                min={3} max={60}
                 onChange={e => onCycleIntervalChange(Math.max(3, Number(e.target.value)))}
               />
               <span className="settings-hint">Sek.</span>
             </div>
           </div>
 
+          {/* ── Briefing-Typen ─────────────────────────────────── */}
           <div className="settings-section">
             <div className="settings-section-title">Briefing-Typen</div>
 
@@ -261,6 +261,7 @@ export function SettingsOverlay({
                 {form && !form.isNew && form.type.key === type.key ? (
                   <TypeForm
                     form={form}
+                    filterOptions={filterOptions}
                     onNameChange={handleNameChange}
                     onChange={updateType}
                     onSave={handleSave}
@@ -270,7 +271,10 @@ export function SettingsOverlay({
                   <div className="briefing-type-row">
                     <div className="briefing-type-info">
                       <span className="briefing-type-name">{type.name}</span>
-                      <span className="briefing-type-days">{type.days} Tage</span>
+                      <span className="briefing-type-days">
+                        {dateRangeLabel(type.date_range)}
+                        {type.filter_by ? ` · ${filterLabel(type.filter_by)}` : ''}
+                      </span>
                     </div>
                     <div className="briefing-type-actions">
                       <button
@@ -282,10 +286,7 @@ export function SettingsOverlay({
                       <button className="briefing-type-edit-btn" onClick={() => startEdit(type)}>
                         Bearbeiten
                       </button>
-                      <button
-                        className="briefing-type-del-btn"
-                        onClick={() => handleDelete(type.key)}
-                      >
+                      <button className="briefing-type-del-btn" onClick={() => handleDelete(type.key)}>
                         ✕
                       </button>
                     </div>
@@ -297,6 +298,7 @@ export function SettingsOverlay({
             {form?.isNew && (
               <TypeForm
                 form={form}
+                filterOptions={filterOptions}
                 onNameChange={handleNameChange}
                 onChange={updateType}
                 onSave={handleSave}
@@ -305,9 +307,7 @@ export function SettingsOverlay({
             )}
 
             {!form && (
-              <button className="briefing-type-add" onClick={startNew}>
-                + Neuer Typ
-              </button>
+              <button className="briefing-type-add" onClick={startNew}>+ Neuer Typ</button>
             )}
           </div>
         </div>
@@ -318,12 +318,14 @@ export function SettingsOverlay({
 
 function TypeForm({
   form,
+  filterOptions,
   onNameChange,
   onChange,
   onSave,
   onCancel,
 }: {
   form: FormState;
+  filterOptions: { value: string; label: string }[];
   onNameChange: (name: string) => void;
   onChange: (patch: Partial<BriefingType>) => void;
   onSave: () => void;
@@ -346,22 +348,39 @@ function TypeForm({
         value={type.key}
         onChange={e => onChange({ key: e.target.value })}
         disabled={!isNew}
-        title="Key wird automatisch aus dem Namen generiert"
       />
-      <div className="briefing-type-days-row">
-        <span className="settings-hint">Tage:</span>
-        <input
-          type="number"
-          className="settings-input settings-input--narrow"
-          value={type.days}
-          min={1}
-          max={365}
-          onChange={e => onChange({ days: Number(e.target.value) })}
-        />
+
+      <div className="briefing-type-filter-row">
+        <div className="briefing-type-filter-col">
+          <label className="settings-label">Zeitraum</label>
+          <select
+            className="settings-select settings-select--active"
+            value={type.date_range}
+            onChange={e => onChange({ date_range: e.target.value })}
+          >
+            {DATE_RANGE_OPTIONS.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="briefing-type-filter-col">
+          <label className="settings-label">Filter</label>
+          <select
+            className="settings-select settings-select--active"
+            value={type.filter_by ?? ''}
+            onChange={e => onChange({ filter_by: e.target.value || undefined })}
+          >
+            {filterOptions.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
+
       <textarea
         className="settings-textarea"
-        placeholder="Prompt für Qwen (z.B. 2-3 Sätze Morgenbriefing...)"
+        placeholder="Was soll das Briefing tun? z.B.: Rückblick letzte 30 Tage. Freundlich, bestätigend."
         value={type.prompt}
         rows={3}
         onChange={e => onChange({ prompt: e.target.value })}
@@ -379,9 +398,7 @@ function TypeForm({
         <button className="btn btn-primary" onClick={onSave} disabled={saving}>
           {saving ? '…' : 'Speichern'}
         </button>
-        <button className="btn btn-secondary" onClick={onCancel}>
-          Abbrechen
-        </button>
+        <button className="btn btn-secondary" onClick={onCancel}>Abbrechen</button>
       </div>
     </div>
   );

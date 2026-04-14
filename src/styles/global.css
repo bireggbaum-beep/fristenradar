@@ -1373,3 +1373,15 @@ button {
 .llm-save-row {
   margin-top: 4px;
 }
+
+.briefing-type-filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.briefing-type-filter-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

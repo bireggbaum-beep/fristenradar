@@ -52,10 +52,26 @@ export interface GoogleCalendarEvent {
 export interface BriefingType {
   key: string;
   name: string;
-  days: number;
+  date_range: string;   // 'urgent'|'next_7'|'next_14'|'next_30'|'next_90'|'past_7'|'past_30'
+  filter_by?: string;   // 'tag:kind_1' | 'calendar:id' | '' | undefined → kein Filter
   prompt: string;
   active: boolean;
 }
+
+export interface AvailableFilters {
+  tags: string[];
+  calendars: { id: string; name: string }[];
+}
+
+export const DATE_RANGE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'urgent',  label: 'Dringend (nächste 14 Tage)' },
+  { value: 'next_7',  label: 'Nächste 7 Tage' },
+  { value: 'next_14', label: 'Nächste 14 Tage' },
+  { value: 'next_30', label: 'Nächste 30 Tage' },
+  { value: 'next_90', label: 'Nächste 90 Tage' },
+  { value: 'past_7',  label: 'Vergangene 7 Tage' },
+  { value: 'past_30', label: 'Vergangene 30 Tage' },
+];
 
 export interface LLMConfig {
   provider: 'local' | 'openrouter';
