@@ -115,6 +115,16 @@ export function App() {
   const heroItem = heroItems[0];
   const soonItems = soon.filter(i => !heroItemIds.has(i.id)).slice(0, 2);
 
+  // Safety net: clear loadingKey if it's stuck for more than 2 minutes
+  useEffect(() => {
+    if (!loadingKey) return;
+    const id = setTimeout(() => {
+      setLoadingKey(null);
+      setBriefingError('Briefing-Generierung dauerte zu lang — bitte erneut versuchen.');
+    }, 120_000);
+    return () => clearTimeout(id);
+  }, [loadingKey]);
+
   async function handlePlayBriefing(key: string, force = false) {
     if (loadingKey !== null) return;
     setLoadingKey(key);

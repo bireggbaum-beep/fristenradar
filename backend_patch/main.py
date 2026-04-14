@@ -175,10 +175,19 @@ async def sync_events() -> None:
 
 
 async def sync_loop() -> None:
+    backoff = 60  # seconds; doubles on failure, caps at 15 min
     while True:
         log.info("sync_loop: syncing calendar…")
-        await sync_events()
-        await asyncio.sleep(15 * 60)   # every 15 minutes
+        try:
+            await sync_events()
+            backoff = 60  # reset on success
+        except Exception as e:
+            log.error("sync_loop: unhandled error: %s", e)
+            log.warning("sync_loop: retrying in %d s", backoff)
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, 15 * 60)
+            continue
+        await asyncio.sleep(15 * 60)
 
 
 # ── Parse cache (now in SQLite) ────────────────────────────────────────────────
@@ -221,8 +230,11 @@ def save_llm_config(config: dict) -> None:
 
 def load_briefing_types() -> list[dict]:
     if BRIEFING_TYPES_FILE.exists():
-        with open(BRIEFING_TYPES_FILE, encoding="utf-8") as f:
-            return json.load(f)
+        try:
+            with open(BRIEFING_TYPES_FILE, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            log.warning("load_briefing_types: Datei beschädigt, wird ignoriert: %s", e)
     return []
 
 
@@ -289,13 +301,22 @@ async def parse_all_events() -> None:
     model_used = config.get("localModel", "") if config.get("provider") == "local" \
         else config.get("openrouterModel", "")
 
+    consecutive_failures = 0
     for row in rows:
+        if consecutive_failures >= 3:
+            log.warning(
+                "parse_all_events: %d consecutive LLM failures — aborting batch to avoid hammering",
+                consecutive_failures,
+            )
+            break
         try:
             parsed = await _parse_description(row["description"])
             save_cached_parse(row["id"], parsed, model_used)
             log.info("Parsed event %s", row["id"])
+            consecutive_failures = 0
         except Exception as e:
-            log.warning("parse failed for %s: %s", row["id"], e)
+            consecutive_failures += 1
+            log.warning("parse failed for %s (%d consecutive): %s", row["id"], consecutive_failures, e)
 
 
 async def _parse_description(description: str) -> dict:
@@ -320,14 +341,23 @@ async def parse_loop() -> None:
     await asyncio.sleep(10)   # let sync run first
     while True:
         log.info("parse_loop: parsing unparsed descriptions…")
-        await parse_all_events()
+        try:
+            await parse_all_events()
+        except Exception as e:
+            log.error("parse_loop: unhandled error: %s", e)
         await asyncio.sleep(4 * 3600)
 
 
 # ── Edge TTS ───────────────────────────────────────────────────────────────────
 async def _text_to_speech(text: str, output_path: str, voice: str) -> str:
     import edge_tts  # type: ignore
-    await edge_tts.Communicate(text, voice).save(output_path)
+    try:
+        await asyncio.wait_for(
+            edge_tts.Communicate(text, voice).save(output_path),
+            timeout=60.0,
+        )
+    except asyncio.TimeoutError:
+        raise TimeoutError("Edge TTS hat nicht geantwortet (Timeout nach 60 s)")
     return output_path
 
 
@@ -612,6 +642,8 @@ def get_briefing_types():
 
 @app.post("/api/briefing/types")
 async def save_briefing_type(btype: dict):
+    if not btype.get("key") or not btype.get("name"):
+        raise HTTPException(status_code=422, detail="'key' und 'name' sind Pflichtfelder")
     types = load_briefing_types()
     idx = next((i for i, b in enumerate(types) if b["key"] == btype["key"]), None)
     if idx is not None:

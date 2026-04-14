@@ -7,7 +7,14 @@ type StatusMap = Record<string, { status: FristStatus; updatedAt: string }>;
 
 function loadStatusMap(): StatusMap {
   const raw = localStorage.getItem(STORAGE_KEY);
-  return raw ? (JSON.parse(raw) as StatusMap) : {};
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw) as StatusMap;
+  } catch {
+    console.warn('fristenradar: Status-Speicher beschädigt, wird zurückgesetzt');
+    localStorage.removeItem(STORAGE_KEY);
+    return {};
+  }
 }
 
 function persistStatus(eventId: string, status: FristStatus): void {

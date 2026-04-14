@@ -142,15 +142,38 @@ export async function fetchBriefingText(): Promise<string> {
 export async function playBriefingAudio(key: string, voice: string, force = false): Promise<void> {
   const bust = force ? `&_t=${Date.now()}` : '';
   const url = `/api/briefing/audio?key=${encodeURIComponent(key)}&voice=${encodeURIComponent(voice)}${force ? '&force=true' : ''}${bust}`;
-  const res = await fetch(url);
+
+  const controller = new AbortController();
+  const fetchTimeout = setTimeout(() => controller.abort(), 90_000);
+
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: controller.signal });
+  } catch (err) {
+    clearTimeout(fetchTimeout);
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new Error('Briefing-Anfrage abgebrochen (Timeout nach 90 s)');
+    }
+    throw err;
+  }
+  clearTimeout(fetchTimeout);
+
   if (!res.ok) throw new Error(`Briefing-Fehler ${res.status}`);
+
   const blob = await res.blob();
+  if (!blob.type.startsWith('audio/')) {
+    throw new Error(`Unerwarteter Inhaltstyp vom Server: ${blob.type || 'unbekannt'}`);
+  }
+
   const audioUrl = URL.createObjectURL(blob);
-  const audio = new Audio(audioUrl);
-  await new Promise<void>((resolve, reject) => {
-    audio.onended = () => resolve();
-    audio.onerror = () => reject(new Error('Audio-Fehler'));
-    audio.play();
-  });
-  URL.revokeObjectURL(audioUrl);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const audio = new Audio(audioUrl);
+      audio.onended = () => resolve();
+      audio.onerror = () => reject(new Error('Audio-Wiedergabe fehlgeschlagen'));
+      audio.play().catch(reject);
+    });
+  } finally {
+    URL.revokeObjectURL(audioUrl);
+  }
 }

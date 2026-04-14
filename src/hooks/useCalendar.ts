@@ -67,16 +67,23 @@ export function useCalendar() {
 
   const loadFromBackend = useCallback(async () => {
     setState(prev => ({ ...prev, loading: true, error: null }));
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15_000);
     try {
-      const events = await fetchEventsFromBackend(365);
+      const events = await fetchEventsFromBackend(365, controller.signal);
+      clearTimeout(timeoutId);
       const items = mapEventsToFristItems(events);
       items.sort((a, b) => urgencyScore(b) - urgencyScore(a));
       setState({ items, loading: false, error: null, lastSync: new Date() });
     } catch (err) {
+      clearTimeout(timeoutId);
+      const isAbort = err instanceof DOMException && err.name === 'AbortError';
       setState(prev => ({
         ...prev,
         loading: false,
-        error: err instanceof Error ? err.message : 'Unbekannter Fehler',
+        error: isAbort
+          ? 'Backend antwortet nicht (Timeout)'
+          : err instanceof Error ? err.message : 'Unbekannter Fehler',
       }));
     }
   }, []);

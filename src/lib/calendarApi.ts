@@ -65,9 +65,10 @@ export function triggerReparse(): void {
 
 /** Fetch events from our own backend (eliteVault server). */
 export async function fetchEventsFromBackend(
-  days: number = 90
+  days: number = 90,
+  signal?: AbortSignal
 ): Promise<GoogleCalendarEvent[]> {
-  const res = await fetch(`/api/calendar/upcoming?days=${days}`);
+  const res = await fetch(`/api/calendar/upcoming?days=${days}`, { signal });
   if (!res.ok) {
     throw new Error(`Backend error: ${res.status} ${res.statusText}`);
   }
