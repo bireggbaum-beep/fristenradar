@@ -59,7 +59,7 @@ body,
 body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text-primary);
-  overflow: hidden;
+  overflow: hidden;       /* desktop: fixed viewport dashboard */
   background:
     radial-gradient(ellipse 70% 50% at 50% 12%, rgba(90, 120, 170, 0.07) 0%, transparent 55%),
     linear-gradient(180deg, var(--bg-deep) 0%, var(--bg-mid) 58%, var(--bg-low) 100%);
@@ -79,7 +79,7 @@ button {
   height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr;
-  overflow: hidden;
+  overflow: hidden;       /* desktop: fixed viewport dashboard */
 }
 
 /* ===== TopBar ===== */
@@ -201,7 +201,7 @@ button {
 
 .home-screen {
   padding: 0 30px 30px;
-  overflow: hidden;
+  overflow: hidden;       /* desktop: fixed viewport dashboard */
 }
 
 .hero-shell {
@@ -708,9 +708,11 @@ button {
   justify-content: center;
   padding: 24px;
   z-index: 100;
+  cursor: pointer;        /* iOS Safari: onClick on div requires cursor:pointer */
 }
 
 .overlay-card {
+  cursor: default;
   width: 100%;
   max-width: 560px;
   max-height: 85vh;
@@ -1181,6 +1183,13 @@ button {
 }
 
 @media (max-width: 760px) {
+  /* Unlock scroll — mobile is not a fixed-height dashboard */
+  html, body { height: auto; overflow-x: hidden; }
+  body { overflow-y: auto; }
+  .app { height: auto; min-height: 100svh; overflow: visible; display: flex; flex-direction: column; }
+  .home-screen { overflow: visible; flex: 1; }
+  .hero-shell { height: auto; }
+
   .topbar {
     padding: 20px 20px 14px;
   }
@@ -1231,6 +1240,97 @@ button {
 
   .preview-card {
     padding: 16px;
+  }
+
+  /* Overlay als Bottom Sheet auf Mobile */
+  .overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .overlay-card {
+    max-width: 100%;
+    max-height: 90svh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+}
+
+/* ── Phone (≤480px) ───────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .topbar {
+    padding: 16px 16px 10px;
+  }
+
+  .topbar-right {
+    gap: 8px;
+  }
+
+  .topbar-btn,
+  .refresh-btn,
+  .settings-btn {
+    width: 34px;
+    height: 34px;
+    font-size: 14px;
+  }
+
+  .greeting {
+    font-size: 22px;
+  }
+
+  .datetime {
+    font-size: 13px;
+  }
+
+  .topbar-time {
+    font-size: 14px;
+  }
+
+  .home-screen {
+    padding: 0 14px 24px;
+  }
+
+  .hero-shell {
+    gap: 14px;
+  }
+
+  .hero-card {
+    padding: 20px;
+    border-radius: 18px;
+  }
+
+  .hero-kicker {
+    font-size: 10px;
+  }
+
+  .hero-message {
+    font-size: 24px;
+    line-height: 1.2;
+  }
+
+  .hero-focus-title {
+    font-size: 17px;
+  }
+
+  .hero-focus-note {
+    font-size: 13px;
+  }
+
+  .hero-countdown {
+    font-size: 14px;
+  }
+
+  .hero-btn {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  .preview-card {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .preview-title {
+    font-size: 12px;
   }
 }
 
